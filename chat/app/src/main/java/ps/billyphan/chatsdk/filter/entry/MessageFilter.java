@@ -1,4 +1,4 @@
-package ps.billyphan.chatsdk.filter;
+package ps.billyphan.chatsdk.filter.entry;
 
 import org.jivesoftware.smack.filter.AndFilter;
 import org.jivesoftware.smack.filter.MessageTypeFilter;

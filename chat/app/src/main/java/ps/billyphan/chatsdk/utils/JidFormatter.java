@@ -5,7 +5,7 @@ import org.jxmpp.jid.EntityBareJid;
 import org.jxmpp.jid.impl.JidCreate;
 import org.jxmpp.stringprep.XmppStringprepException;
 
-import ps.billyphan.chatsdk.XMPPClient;
+import ps.billyphan.chatsdk.xmpp.XMPPClient;
 
 public final class JidFormatter {
     public static DomainBareJid domain(String host) {

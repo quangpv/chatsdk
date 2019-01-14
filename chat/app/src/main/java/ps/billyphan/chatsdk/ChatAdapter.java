@@ -1,7 +1,9 @@
 package ps.billyphan.chatsdk;
 
+import android.arch.lifecycle.Observer;
 import android.support.annotation.NonNull;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -29,7 +31,12 @@ class ChatAdapter extends RecyclerView.Adapter {
     public void add(MessageEntry message) {
         mMapItems.put(message.getId(), message);
         mItems.add(message);
-        notifyDataSetChanged();
+        refreshView();
+    }
+
+    public void typing(StateEntry message) {
+        mTyping = message;
+        refreshView();
     }
 
     public void addAll(List<MessageEntry> messages) {
@@ -37,17 +44,12 @@ class ChatAdapter extends RecyclerView.Adapter {
             mMapItems.put(message.getId(), message);
             mItems.add(message);
         }
-        notifyDataSetChanged();
+        refreshView();
     }
 
-    public void addOrUpdate(MessageEntry message) {
-        if (mMapItems.containsKey(message.getId())) {
-            mMapItems.get(message.getId()).setReceipt(message.getReceipt());
-        } else {
-            mMapItems.put(message.getId(), message);
-            mItems.add(message);
-        }
+    private void refreshView() {
         notifyDataSetChanged();
+        Log.e("REFRESH_VIEW", "ACCEPT");
     }
 
     @Override
@@ -68,19 +70,21 @@ class ChatAdapter extends RecyclerView.Adapter {
             ((ViewHolder) viewHolder).bind(mItems.get(i));
     }
 
+    private boolean isTyping() {
+        return (mTyping != null && mTyping.isTyping());
+    }
+
+    @Override
+    public void onViewRecycled(@NonNull RecyclerView.ViewHolder holder) {
+        super.onViewRecycled(holder);
+        if (holder instanceof ViewHolder) ((ViewHolder) holder).onRecycled();
+    }
+
     @Override
     public int getItemCount() {
         return mItems.size() + (isTyping() ? 1 : 0);
     }
 
-    private boolean isTyping() {
-        return (mTyping != null && mTyping.isTyping());
-    }
-
-    public void typing(StateEntry message) {
-        mTyping = message;
-        notifyDataSetChanged();
-    }
 
     private class TypingViewHolder extends RecyclerView.ViewHolder {
         private final TextView txtMessage;
@@ -96,9 +100,10 @@ class ChatAdapter extends RecyclerView.Adapter {
         }
     }
 
-    private class ViewHolder extends RecyclerView.ViewHolder {
+    private class ViewHolder extends RecyclerView.ViewHolder implements Observer<MessageEntry> {
         private final TextView txtMessage;
         private final TextView txtReceipt;
+        private MessageEntry mItem;
 
         public ViewHolder(ViewGroup viewGroup) {
             super(LayoutInflater.from(viewGroup.getContext())
@@ -108,8 +113,19 @@ class ChatAdapter extends RecyclerView.Adapter {
         }
 
         public void bind(MessageEntry messageEntry) {
-            txtMessage.setText(messageEntry.getBody());
-            txtReceipt.setText(messageEntry.getReceiptText());
+            mItem = messageEntry;
+            messageEntry.addObserver(this);
+            onChanged(messageEntry);
+        }
+
+        @Override
+        public void onChanged(MessageEntry message) {
+            txtMessage.setText(message.getBody());
+            txtReceipt.setText(message.getReceiptText());
+        }
+
+        public void onRecycled() {
+            mItem.addObserver(this);
         }
     }
 }

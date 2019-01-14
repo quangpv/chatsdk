@@ -2,6 +2,7 @@ package ps.billyphan.chatsdk.filter;
 
 import org.jivesoftware.smackx.chatstates.ChatState;
 
+import ps.billyphan.chatsdk.filter.entry.ChatFilter;
 import ps.billyphan.chatsdk.models.StateEntry;
 
 public class StateEntryFilter implements ChatFilter<StateEntry> {

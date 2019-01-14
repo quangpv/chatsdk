@@ -1,4 +1,4 @@
-package ps.billyphan.chatsdk;
+package ps.billyphan.chatsdk.models;
 
 public final class ReceiptState {
     public static final int NONE = -1;

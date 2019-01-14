@@ -2,22 +2,26 @@ package ps.billyphan.chatsdk.models;
 
 import org.jivesoftware.smack.packet.Message;
 
-import ps.billyphan.chatsdk.ReceiptState;
+import java.util.Set;
+
 import ps.billyphan.chatsdk.utils.PackageAnalyze;
 
-public class MessageEntry {
+public class MessageEntry extends Observable {
     private final String mId;
     private final String mFromId;
     private final String mToId;
     private final String mBody;
     private final long mTimeReceived;
+    private final Set<Message.Body> mBodies;
     private int mReceipt = ReceiptState.NONE;
+    private boolean mSendFromFriend = true;
 
     public MessageEntry(Message message) {
         mId = message.getStanzaId();
         mFromId = PackageAnalyze.getFromId(message);
         mToId = PackageAnalyze.getToId(message);
         mBody = message.getBody();
+        mBodies = message.getBodies();
         mTimeReceived = System.currentTimeMillis();
     }
 
@@ -49,6 +53,10 @@ public class MessageEntry {
         return mReceipt == ReceiptState.SENDING || mReceipt == ReceiptState.SENT;
     }
 
+    public Set<Message.Body> getBodies() {
+        return mBodies;
+    }
+
     public int getReceipt() {
         return mReceipt;
     }
@@ -70,5 +78,13 @@ public class MessageEntry {
 
     public int compareTime(MessageEntry t1) {
         return mTimeReceived - t1.mTimeReceived > 0 ? 1 : -1;
+    }
+
+    public boolean isSendFromFriend() {
+        return mSendFromFriend;
+    }
+
+    public void setSendFromFriend(boolean b) {
+        mSendFromFriend = b;
     }
 }

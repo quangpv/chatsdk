@@ -1,7 +1,6 @@
 package ps.billyphan.chatsdk.datasource;
 
 import android.support.v4.util.Consumer;
-import android.util.Log;
 
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.tcp.XMPPTCPConnection;
@@ -10,44 +9,40 @@ import org.jivesoftware.smackx.offline.OfflineMessageManager;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
-import ps.billyphan.chatsdk.AppExecutors;
-import ps.billyphan.chatsdk.ChatConversation;
-import ps.billyphan.chatsdk.filter.MessageFilter;
 import ps.billyphan.chatsdk.filter.StateEntryFilter;
 import ps.billyphan.chatsdk.filter.UnreadFilter;
+import ps.billyphan.chatsdk.filter.entry.MessageFilter;
 import ps.billyphan.chatsdk.listeners.MessageListenerWrapper;
 import ps.billyphan.chatsdk.listeners.StateListenerWrapper;
 import ps.billyphan.chatsdk.models.MessageEntry;
+import ps.billyphan.chatsdk.models.PairHashMap;
+import ps.billyphan.chatsdk.models.ReceiptState;
 import ps.billyphan.chatsdk.models.StateEntry;
-import ps.billyphan.chatsdk.utils.PackageAnalyze;
 
 public class ChatDataSource {
-    private final ChatConversation mUnreadConversation;
-    private final Map<String, MessageEntry> mSendingConversation;
-    private final Map<String, StateEntry> mState;
+    private final ChatConversation mUnread;
+    private final ChatSending mSending;
+    private final PairHashMap<StateEntry> mState;
     private OfflineMessageManager mOfflineMessageManager;
     private XMPPTCPConnection mConnection;
     private Set<MessageListenerWrapper<MessageEntry>> mOnMessageComingListeners = new HashSet<>();
     private Set<MessageListenerWrapper<Integer>> mOnMessageUnreadChangedListeners = new HashSet<>();
     private Set<MessageListenerWrapper<MessageEntry>> mOnMessageOutGoingListeners = new HashSet<>();
-    private Set<MessageListenerWrapper<MessageEntry>> mOnReceiptListeners = new HashSet<>();
     private Set<StateListenerWrapper<StateEntry>> mOnStateListeners = new HashSet<>();
-    private ChatDao mChatDao = new ChatDao();
+    private ChatArchived mChatArchived = new ChatArchived();
 
     public XMPPTCPConnection getConnection() {
         return mConnection;
     }
 
     public ChatDataSource() {
-        mUnreadConversation = new ChatConversation();
-        mSendingConversation = new HashMap<>();
-        mState = new HashMap<>();
+        mUnread = new ChatConversation();
+        mSending = new ChatSending();
+        mState = new PairHashMap<>();
     }
 
     public void fetchOfflineMessages() {
@@ -60,10 +55,11 @@ public class ChatDataSource {
             }
             List<MessageEntry> messageEntries = new ArrayList<>();
             for (Message message : mOfflineMessageManager.getMessages(nodes)) {
-                MessageEntry messageEntry = mUnreadConversation.push(message);
+                MessageEntry messageEntry = mUnread.push(message);
                 messageEntries.add(messageEntry);
             }
-            mChatDao.addAll(messageEntries);
+            mChatArchived.addAll(messageEntries);
+            mOfflineMessageManager.deleteMessages();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -74,91 +70,64 @@ public class ChatDataSource {
         mOfflineMessageManager = new OfflineMessageManager(connection);
     }
 
-    public void addInComing(Message message) {
-        MessageEntry messageEntry = mUnreadConversation.push(message);
-        mChatDao.add(messageEntry);
-        notifyInComing(messageEntry);
-        Log.e("DEBUG", "Unread message: " + mUnreadConversation.getUnreadSizeOfPair(messageEntry));
-    }
-
-    public void updateRead(Message message) {
-        MessageEntry messageEntry = mUnreadConversation.pop(message);
-        notifyNumOfUnreadChanged(messageEntry);
-    }
-
     public List<MessageEntry> getMessages(MessageFilter messageFilter) {
-        List<MessageEntry> data = mChatDao.getByPrivateChat(messageFilter.getFrom(), messageFilter.getTo());
+        List<MessageEntry> data = mChatArchived.getByPairChat(messageFilter.getFrom(), messageFilter.getTo());
         Collections.sort(data, MessageEntry::compareTime);
         return data;
     }
 
-    public void addOutGoing(Message message) {
-        MessageEntry messageEntry = new MessageEntry(message);
-        mSendingConversation.put(message.getStanzaId(), messageEntry);
-        mChatDao.add(messageEntry);
-        notifyOutGoing(messageEntry);
+    public void addInComing(Message message) {
+        MessageEntry messageEntry = mUnread.push(message);
+        messageEntry.setSendFromFriend(true);
+        mChatArchived.save(messageEntry);
+        for (MessageListenerWrapper<MessageEntry> wrapper : mOnMessageComingListeners) {
+            if (wrapper.filter.accept(messageEntry)) {
+                wrapper.listener.accept(messageEntry);
+            }
+        }
+        notifyUnreadChanged(messageEntry);
     }
 
-    public void updateReceipt(Message message, int sending) {
-        MessageEntry oldMessage = mSendingConversation.get(message.getStanzaId());
-        if (oldMessage != null) {
-            oldMessage.setReceipt(sending);
-            if (oldMessage.isRead()) mSendingConversation.remove(message.getStanzaId());
-        } else {
-            oldMessage = new MessageEntry(message);
-            oldMessage.setReceipt(sending);
-            mSendingConversation.put(message.getStanzaId(), oldMessage);
+    public int getUnreadSizeOfPair(String id1, String id2) {
+        return mUnread.getUnreadSizeOfPair(id1, id2);
+    }
+
+    public void updateRead(Message message) {
+        MessageEntry messageEntry = mUnread.popSibling(message);
+        if (messageEntry != null)
+            notifyUnreadChanged(messageEntry);
+    }
+
+    private void notifyUnreadChanged(MessageEntry messageEntry) {
+        for (MessageListenerWrapper<Integer> wrapper : mOnMessageUnreadChangedListeners) {
+            if (wrapper.filter.accept(messageEntry)) {
+                wrapper.listener.accept(mUnread.getUnreadSizeOfPair(messageEntry));
+            }
         }
-        mChatDao.addOrUpdate(oldMessage);
-        notifyReceipt(oldMessage);
+    }
+
+    public void addOutGoing(Message message) {
+        MessageEntry messageEntry = mSending.push(message);
+        mChatArchived.save(messageEntry);
+        for (MessageListenerWrapper<MessageEntry> wrapper : mOnMessageOutGoingListeners) {
+            if (wrapper.filter.accept(messageEntry)) {
+                wrapper.listener.accept(messageEntry);
+            }
+        }
+    }
+
+    public void updateReceipt(Message message, int state) {
+        if (state == ReceiptState.READ) {
+            mChatArchived.saves(mSending.updateRead(message));
+        } else mChatArchived.save(mSending.updateReceipt(message, state));
     }
 
     public void updateState(Message message) {
-        String pair = PackageAnalyze.getChatPair(message);
-        StateEntry stateEntry = PackageAnalyze.getAtPair(mState, message);
-        if (stateEntry == null) {
-            stateEntry = new StateEntry(message);
-            mState.put(pair, stateEntry);
-        } else stateEntry.setState(message);
-        notifyStateChanged(stateEntry);
-    }
-
-    private void notifyStateChanged(StateEntry stateEntry) {
+        StateEntry stateEntry = mState.getOrDefault(message, new StateEntry(message));
+        stateEntry.setState(message);
         for (StateListenerWrapper<StateEntry> wrapper : mOnStateListeners) {
             if (wrapper.filter.accept(stateEntry)) {
-                AppExecutors.onMainThread(() -> wrapper.listener.accept(stateEntry));
-            }
-        }
-    }
-
-    private void notifyReceipt(MessageEntry messageEntry) {
-        for (MessageListenerWrapper<MessageEntry> wrapper : mOnReceiptListeners) {
-            if (wrapper.filter.accept(messageEntry)) {
-                AppExecutors.onMainThread(() -> wrapper.listener.accept(messageEntry));
-            }
-        }
-    }
-
-    private void notifyNumOfUnreadChanged(MessageEntry message) {
-        for (MessageListenerWrapper<Integer> wrapper : mOnMessageUnreadChangedListeners) {
-            if (wrapper.filter.accept(message)) {
-                AppExecutors.onMainThread(() -> wrapper.listener.accept(mUnreadConversation.getUnreadSizeOfPair(message)));
-            }
-        }
-    }
-
-    private void notifyInComing(MessageEntry message) {
-        for (MessageListenerWrapper<MessageEntry> onMessageComingListener : mOnMessageComingListeners) {
-            if (onMessageComingListener.filter.accept(message)) {
-                AppExecutors.onMainThread(() -> onMessageComingListener.listener.accept(message));
-            }
-        }
-    }
-
-    public void notifyOutGoing(MessageEntry message) {
-        for (MessageListenerWrapper<MessageEntry> onMessageOutGoingListener : mOnMessageOutGoingListeners) {
-            if (onMessageOutGoingListener.filter.accept(message)) {
-                AppExecutors.onMainThread(() -> onMessageOutGoingListener.listener.accept(message));
+                wrapper.listener.accept(stateEntry);
             }
         }
     }
@@ -173,10 +142,6 @@ public class ChatDataSource {
 
     public void addOnMessageOutGoingListener(Consumer<MessageEntry> listener, MessageFilter messageFilter) {
         mOnMessageOutGoingListeners.add(new MessageListenerWrapper<>(listener, messageFilter));
-    }
-
-    public void addOnReceiptListener(Consumer<MessageEntry> listener, MessageFilter messageFilter) {
-        mOnReceiptListeners.add(new MessageListenerWrapper<>(listener, messageFilter));
     }
 
     public void removeOnMessageComingListener(Consumer<MessageEntry> onMessageComingListener) {
@@ -197,15 +162,6 @@ public class ChatDataSource {
         }
     }
 
-    public void removeOnReceiptListener(Consumer<MessageEntry> onReceipt) {
-        for (MessageListenerWrapper wrapper : mOnReceiptListeners) {
-            if (wrapper.listener == onReceipt) {
-                mOnReceiptListeners.remove(wrapper);
-                break;
-            }
-        }
-    }
-
     public void addOnStateListeners(Consumer<StateEntry> onStateListener, StateEntryFilter filter) {
         mOnStateListeners.add(new StateListenerWrapper<>(onStateListener, filter));
     }
@@ -214,6 +170,15 @@ public class ChatDataSource {
         for (StateListenerWrapper<StateEntry> wrapper : mOnStateListeners) {
             if (wrapper.listener == listener) {
                 mOnStateListeners.remove(wrapper);
+                break;
+            }
+        }
+    }
+
+    public void removeUnreadChangedListener(Consumer<Integer> listener) {
+        for (MessageListenerWrapper<Integer> wrapper : mOnMessageUnreadChangedListeners) {
+            if (wrapper.listener == listener) {
+                mOnMessageUnreadChangedListeners.remove(wrapper);
                 break;
             }
         }

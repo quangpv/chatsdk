@@ -7,6 +7,7 @@ import org.jivesoftware.smack.packet.Stanza;
 import org.jivesoftware.smackx.receipts.DeliveryReceipt;
 
 import ps.billyphan.chatsdk.extension.ReadReceipt;
+import ps.billyphan.chatsdk.filter.entry.MessageFilter;
 
 public class ReceiptFilter implements StanzaFilter {
     public static final StanzaFilter RECEIVED = new AndFilter(MessageFilter.PRIVATE_OR_GROUP, new ReceiptFilter(DeliveryReceipt.class));
@@ -25,10 +26,10 @@ public class ReceiptFilter implements StanzaFilter {
     }
 
     private boolean checkExtension(Stanza stanza) {
-        if (mType.isInstance(DeliveryReceipt.class))
+        if (mType == DeliveryReceipt.class)
             return stanza.hasExtension(DeliveryReceipt.ELEMENT, DeliveryReceipt.NAMESPACE);
-        if (mType.isInstance(ReadReceipt.class))
-            return stanza.hasExtension(DeliveryReceipt.ELEMENT, DeliveryReceipt.NAMESPACE);
+        if (mType == ReadReceipt.class)
+            return stanza.hasExtension(ReadReceipt.ELEMENT, ReadReceipt.NAMESPACE);
         return false;
     }
 }

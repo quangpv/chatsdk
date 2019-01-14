@@ -2,7 +2,6 @@ package ps.billyphan.chatsdk.listeners;
 
 import android.support.v4.util.Consumer;
 
-import ps.billyphan.chatsdk.filter.MessageFilter;
 import ps.billyphan.chatsdk.filter.StateEntryFilter;
 
 public class StateListenerWrapper<T> {

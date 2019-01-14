@@ -1,4 +1,4 @@
-package ps.billyphan.chatsdk.filter;
+package ps.billyphan.chatsdk.filter.entry;
 
 import ps.billyphan.chatsdk.models.MessageEntry;
 
@@ -10,8 +10,6 @@ public class ReceiptEntryFilter extends PrivateEntryFilter {
 
     @Override
     public boolean accept(MessageEntry messageEntry) {
-        if (messageEntry.isTypeSend())
-            return messageEntry.getToId().equals(getFrom());
-        return super.accept(messageEntry);
+        return messageEntry.getToId().equals(getFrom());
     }
 }

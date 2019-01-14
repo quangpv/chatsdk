@@ -1,5 +1,6 @@
 package ps.billyphan.chatsdk.filter;
 
+import ps.billyphan.chatsdk.filter.entry.MessageFilter;
 import ps.billyphan.chatsdk.models.MessageEntry;
 
 public class UnreadFilter extends MessageFilter {

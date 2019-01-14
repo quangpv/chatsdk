@@ -1,4 +1,4 @@
-package ps.billyphan.chatsdk.filter;
+package ps.billyphan.chatsdk.filter.entry;
 
 import ps.billyphan.chatsdk.models.MessageEntry;
 

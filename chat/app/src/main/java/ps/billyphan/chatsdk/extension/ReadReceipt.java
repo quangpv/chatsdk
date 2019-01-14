@@ -33,7 +33,7 @@ public class ReadReceipt implements ExtensionElement {
     @Override
     public XmlStringBuilder toXML(String enclosingNamespace) {
         XmlStringBuilder xml = new XmlStringBuilder(this);
-        xml.optAttribute("ts", String.valueOf(mStamp));
+        xml.optAttribute("ts", mStamp);
         xml.closeEmptyElement();
         return xml;
     }

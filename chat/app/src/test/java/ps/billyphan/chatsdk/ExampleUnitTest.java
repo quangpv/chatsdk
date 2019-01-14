@@ -2,7 +2,8 @@ package ps.billyphan.chatsdk;
 
 import org.junit.Test;
 
-import ps.billyphan.chatsdk.models.PrivateChat;
+import ps.billyphan.chatsdk.chatclient.PrivateChat;
+import ps.billyphan.chatsdk.xmpp.XMPPClient;
 
 import static org.junit.Assert.assertEquals;
 

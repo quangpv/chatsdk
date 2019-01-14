@@ -9,9 +9,9 @@ import java.util.concurrent.Executors;
 
 import ps.billyphan.chatsdk.listeners.Supplier;
 
-public class AppExecutors {
+public class ChatExecutors {
 
-    private static AppExecutors sInstance = new AppExecutors();
+    private static ChatExecutors sInstance = new ChatExecutors();
     private Executor networkIO = Executors.newFixedThreadPool(3);
     private Handler mainThread = new Handler(Looper.getMainLooper());
 

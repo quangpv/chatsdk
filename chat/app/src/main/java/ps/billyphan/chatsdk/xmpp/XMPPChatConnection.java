@@ -1,4 +1,4 @@
-package ps.billyphan.chatsdk;
+package ps.billyphan.chatsdk.xmpp;
 
 import android.support.v4.util.Consumer;
 import android.util.Log;
@@ -17,25 +17,29 @@ import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
 import org.jivesoftware.smackx.chatstates.ChatState;
 import org.jivesoftware.smackx.chatstates.packet.ChatStateExtension;
 import org.jivesoftware.smackx.disco.ServiceDiscoveryManager;
+import org.jivesoftware.smackx.receipts.DeliveryReceipt;
+import org.jivesoftware.smackx.receipts.DeliveryReceiptManager;
 
 import java.io.IOException;
 
 import ps.billyphan.chatsdk.extension.ReadReceipt;
-import ps.billyphan.chatsdk.filter.MessageFilter;
 import ps.billyphan.chatsdk.filter.ReceiptFilter;
 import ps.billyphan.chatsdk.filter.StateFilter;
+import ps.billyphan.chatsdk.filter.entry.MessageFilter;
+import ps.billyphan.chatsdk.listeners.OnChatMessageListener;
+import ps.billyphan.chatsdk.listeners.OnMessageListener;
 import ps.billyphan.chatsdk.listeners.OnReceiptListener;
-import ps.billyphan.chatsdk.listeners.OnStanzaMessageListener;
+import ps.billyphan.chatsdk.models.ReceiptState;
 
 public class XMPPChatConnection extends XMPPTCPConnection {
-    private OnStanzaMessageListener mOnSentListener;
-    private OnStanzaMessageListener mOnSendingListener;
-    private OnStanzaMessageListener mOnReceivedListener;
-    private OnStanzaMessageListener mOnReadListener;
-    private OnStanzaMessageListener mOnInComingListener;
-    private OnStanzaMessageListener mOnOutGoingListener;
-    private OnStanzaMessageListener mOnNotifyReadListener;
-    private OnStanzaMessageListener mOnStateChangeListener;
+    private OnChatMessageListener mOnSentListener;
+    private OnChatMessageListener mOnInComingListener;
+    private OnChatMessageListener mOnOutGoingListener;
+
+    private OnMessageListener mOnNotifyReadListener;
+    private OnMessageListener mOnStateChangeListener;
+    private OnMessageListener mOnReceivedListener;
+    private OnMessageListener mOnReadListener;
 
     public XMPPChatConnection(XMPPTCPConnectionConfiguration config) {
         super(config);
@@ -51,7 +55,16 @@ public class XMPPChatConnection extends XMPPTCPConnection {
         ReconnectionManager.getInstanceFor(this).setReconnectionPolicy(ReconnectionManager.ReconnectionPolicy.FIXED_DELAY);
 
         //Enable State
-        ServiceDiscoveryManager.getInstanceFor(this).addFeature(StateFilter.NAMESPACE);
+        registryFeatures(ServiceDiscoveryManager.getInstanceFor(this));
+
+        DeliveryReceiptManager delivery = DeliveryReceiptManager.getInstanceFor(this);
+        delivery.setAutoReceiptMode(DeliveryReceiptManager.AutoReceiptMode.disabled);
+        delivery.dontAutoAddDeliveryReceiptRequests();
+    }
+
+    private void registryFeatures(ServiceDiscoveryManager discoveryManager) {
+        discoveryManager.addFeature(StateFilter.NAMESPACE);
+        discoveryManager.addFeature(DeliveryReceipt.NAMESPACE);
     }
 
     public void connect(String userName, String password, Consumer<Boolean> listener) throws InterruptedException, IOException, SmackException, XMPPException {
@@ -82,7 +95,6 @@ public class XMPPChatConnection extends XMPPTCPConnection {
     }
 
     public void registryReceiptListener(OnReceiptListener onReceiptListener) {
-        addStanzaInterceptor(mOnSendingListener = packet -> onReceiptListener.onReceived((Message) packet, ReceiptState.SENDING), MessageFilter.PRIVATE_OR_GROUP);
         addStanzaAcknowledgedListener(mOnSentListener = packet -> onReceiptListener.onReceived(packet, ReceiptState.SENT));
         addSyncStanzaListener(mOnReceivedListener = packet -> onReceiptListener.onReceived(packet, ReceiptState.RECEIVED), ReceiptFilter.RECEIVED);
         addSyncStanzaListener(mOnReadListener = packet -> onReceiptListener.onReceived(packet, ReceiptState.READ), ReceiptFilter.READ);
@@ -91,7 +103,6 @@ public class XMPPChatConnection extends XMPPTCPConnection {
     public void unregisterAll() {
         //Unregister receipt
         removeStanzaAcknowledgedListener(mOnSentListener);
-        removeStanzaAcknowledgedListener(mOnSendingListener);
         removeStanzaAcknowledgedListener(mOnReceivedListener);
         removeStanzaAcknowledgedListener(mOnReadListener);
 
