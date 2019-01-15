@@ -1,74 +1,50 @@
 package ps.billyphan.chatsdk.models;
 
-import org.jivesoftware.smack.packet.Message;
-
 import java.util.HashMap;
 
 import ps.billyphan.chatsdk.listeners.Supplier;
-import ps.billyphan.chatsdk.utils.PackageAnalyze;
 
 public class PairHashMap<T> extends HashMap<String, T> {
 
-    public T get(Message key) {
-        T data = super.get(PackageAnalyze.getChatPair(key));
-        if (data == null) return super.get(PackageAnalyze.getRevertChatPair(key));
-        return data;
+    public static String getPair(String id1, String id2) {
+        return String.format("%s#%s", id1, id2);
     }
 
     public T get(String id1, String id2) {
-        T data = super.get(PackageAnalyze.getChatPair(id1, id2));
-        if (data == null) return super.get(PackageAnalyze.getChatPair(id2, id1));
+        T data = super.get(getPair(id1, id2));
+        if (data == null) return super.get(getPair(id2, id1));
         return data;
     }
 
-    public T get(MessageEntry key) {
-        T data = super.get(PackageAnalyze.getChatPair(key));
-        if (data == null) return super.get(PackageAnalyze.getRevertChatPair(key));
-        return data;
-    }
-
-    public T getOrDefault(MessageEntry key, T item) {
-        T data = get(key);
+    public T getOrDefault(String id1, String id2, T item) {
+        T data = get(id1, id2);
         if (data == null) {
             data = item;
-            put(key, data);
+            put(id1, id2, data);
         }
         return data;
     }
 
-    public T getOrCreate(Message key, Supplier<T> supplier) {
-        T data = get(key);
+    public T getOrCreate(String id1, String id2, Supplier<T> supplier) {
+        T data = get(id1, id2);
         if (data == null) {
             data = supplier.get();
-            put(key, data);
+            put(id1, id2, data);
         }
         return data;
     }
 
-    public T getOrDefault(Message key, T item) {
-        T data = get(key);
-        if (data == null) {
-            data = item;
-            put(key, data);
-        }
-        return data;
+    public T put(String id1, String id2, T value) {
+        return super.put(getPair(id1, id2), value);
     }
 
-    public T put(Message key, T value) {
-        return super.put(PackageAnalyze.getChatPair(key), value);
-    }
-
-    public T put(MessageEntry key, T value) {
-        return super.put(PackageAnalyze.getChatPair(key), value);
-    }
-
-    public boolean remove(Message key) {
-        String pair = PackageAnalyze.getChatPair(key);
+    public boolean remove(String id1, String id2) {
+        String pair = getPair(id1, id2);
         if (containsKey(pair)) {
             super.remove(pair);
             return true;
         } else {
-            pair = PackageAnalyze.getRevertChatPair(key);
+            pair = getPair(id2, id1);
             if (pair.contains(pair)) {
                 super.remove(pair);
                 return true;

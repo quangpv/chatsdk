@@ -6,14 +6,48 @@ import org.jivesoftware.smack.filter.OrFilter;
 import org.jivesoftware.smack.filter.StanzaFilter;
 import org.jivesoftware.smack.filter.StanzaTypeFilter;
 
+import ps.billyphan.chatsdk.filter.BodyFilter;
+import ps.billyphan.chatsdk.filter.NotMeInGroupFilter;
 import ps.billyphan.chatsdk.models.MessageEntry;
 
-public abstract class MessageFilter implements ChatFilter<MessageEntry> {
-    public static final StanzaFilter PRIVATE_OR_GROUP =
-            new AndFilter(StanzaTypeFilter.MESSAGE, new OrFilter(
-                    MessageTypeFilter.CHAT,
+public class MessageFilter implements ChatFilter<MessageEntry> {
+    public static final StanzaFilter PRIVATE =
+            new AndFilter(StanzaTypeFilter.MESSAGE,
+                    MessageTypeFilter.CHAT
+            );
+
+    public static final StanzaFilter GROUP =
+            new AndFilter(StanzaTypeFilter.MESSAGE,
                     MessageTypeFilter.GROUPCHAT
+            );
+
+    public static final StanzaFilter GROUP_EXCEPT_ME =
+            new AndFilter(StanzaTypeFilter.MESSAGE, new AndFilter(
+                    MessageTypeFilter.GROUPCHAT,
+                    new NotMeInGroupFilter()
             ));
+
+    public static final StanzaFilter PRIVATE_OR_GROUP_EXCEPT_ME =
+            new AndFilter(StanzaTypeFilter.MESSAGE,
+                    new OrFilter(
+                            PRIVATE,
+                            GROUP_EXCEPT_ME
+                    )
+            );
+
+    public static final StanzaFilter PRIVATE_BODY =
+            new AndFilter(
+                    StanzaTypeFilter.MESSAGE,
+                    MessageTypeFilter.CHAT,
+                    new BodyFilter()
+            );
+
+    public static final StanzaFilter GROUP_BODY =
+            new AndFilter(
+                    StanzaTypeFilter.MESSAGE,
+                    MessageTypeFilter.GROUPCHAT,
+                    new BodyFilter()
+            );
 
     private final String mFrom;
     private final String mTo;
@@ -29,5 +63,11 @@ public abstract class MessageFilter implements ChatFilter<MessageEntry> {
 
     public String getTo() {
         return mTo;
+    }
+
+    @Override
+    public boolean accept(MessageEntry messageEntry) {
+        return messageEntry.getFromId().equals(getFrom())
+                && messageEntry.getToId().equals(getTo());
     }
 }

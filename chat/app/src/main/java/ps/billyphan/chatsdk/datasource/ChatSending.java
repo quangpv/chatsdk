@@ -2,12 +2,14 @@ package ps.billyphan.chatsdk.datasource;
 
 import org.jivesoftware.smack.packet.Message;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
 import ps.billyphan.chatsdk.models.MessageEntry;
 import ps.billyphan.chatsdk.models.PairHashMap;
 import ps.billyphan.chatsdk.models.ReceiptState;
+import ps.billyphan.chatsdk.utils.PackageAnalyze;
 
 public class ChatSending {
     private PairHashMap<HashMap<String, MessageEntry>> mPair = new PairHashMap<>();
@@ -17,7 +19,8 @@ public class ChatSending {
     }
 
     private HashMap<String, MessageEntry> getOrCreate(Message message) {
-        return mPair.getOrCreate(message, HashMap::new);
+        return mPair.getOrCreate(PackageAnalyze.getFromId(message),
+                PackageAnalyze.getToId(message), HashMap::new);
     }
 
     public MessageEntry push(Message message) {
@@ -38,13 +41,13 @@ public class ChatSending {
         return messageEntry;
     }
 
-    public Map<String, MessageEntry> updateRead(Message message) {
+    public Collection<MessageEntry> updateRead(Message message) {
         Map<String, MessageEntry> messageEntries = getOrCreate(message);
         for (MessageEntry messageEntry : messageEntries.values()) {
             messageEntry.setReceipt(ReceiptState.READ);
             messageEntry.notifyChanged();
         }
-        mPair.remove(message);
-        return messageEntries;
+        mPair.remove(PackageAnalyze.getFromId(message), PackageAnalyze.getToId(message));
+        return messageEntries.values();
     }
 }

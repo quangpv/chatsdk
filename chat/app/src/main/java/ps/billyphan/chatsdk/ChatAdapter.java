@@ -49,7 +49,6 @@ class ChatAdapter extends RecyclerView.Adapter {
 
     private void refreshView() {
         notifyDataSetChanged();
-        Log.e("REFRESH_VIEW", "ACCEPT");
     }
 
     @Override
@@ -76,15 +75,14 @@ class ChatAdapter extends RecyclerView.Adapter {
 
     @Override
     public void onViewRecycled(@NonNull RecyclerView.ViewHolder holder) {
-        super.onViewRecycled(holder);
         if (holder instanceof ViewHolder) ((ViewHolder) holder).onRecycled();
+        super.onViewRecycled(holder);
     }
 
     @Override
     public int getItemCount() {
         return mItems.size() + (isTyping() ? 1 : 0);
     }
-
 
     private class TypingViewHolder extends RecyclerView.ViewHolder {
         private final TextView txtMessage;
@@ -125,7 +123,7 @@ class ChatAdapter extends RecyclerView.Adapter {
         }
 
         public void onRecycled() {
-            mItem.addObserver(this);
+            mItem.removeObserver(this);
         }
     }
 }

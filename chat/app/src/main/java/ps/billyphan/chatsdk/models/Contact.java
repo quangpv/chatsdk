@@ -7,27 +7,24 @@ import java.io.Serializable;
 
 import ps.billyphan.chatsdk.datasource.ChatDataSource;
 import ps.billyphan.chatsdk.filter.UnreadFilter;
-import ps.billyphan.chatsdk.xmpp.XMPPClient;
 
-public class Contact extends Observable implements Serializable {
+abstract public class Contact extends Observable implements Serializable {
     private transient ChatDataSource mDataSource;
     private transient Consumer<Integer> mOnUnreadChanged;
 
-    public String name;
+    public String contactId;
     private String mId;
     private String mNumOfUnread;
 
-    public Contact(String name, XMPPClient client) {
-        this.name = name;
-        if (client != null) {
-            mId = client.getMyId();
-            mDataSource = client.getDataSource();
-            mNumOfUnread = mDataSource.getUnreadSizeOfPair(mId, name) + "";
-            mDataSource.addOnMessageUnreadChangedListener(mOnUnreadChanged = integer -> {
-                mNumOfUnread = integer + "";
-                notifyChanged();
-            }, new UnreadFilter(mId, name));
-        }
+    public Contact(String contactId, String myId, ChatDataSource chatDataSource) {
+        this.contactId = contactId;
+        mId = myId;
+        mDataSource = chatDataSource;
+        mNumOfUnread = mDataSource.getUnreadSizeOfPair(mId, contactId) + "";
+        mDataSource.addOnUnreadChangedListener(mOnUnreadChanged = integer -> {
+            mNumOfUnread = integer + "";
+            notifyChanged();
+        }, new UnreadFilter(mId, contactId));
     }
 
     @Override

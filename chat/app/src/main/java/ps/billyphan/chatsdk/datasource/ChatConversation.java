@@ -22,7 +22,6 @@ public class ChatConversation {
     }
 
     public void push(MessageEntry message) {
-        String pair = PackageAnalyze.getChatPair(message);
         Map<String, MessageEntry> messageEntries = mConversations.getOrDefault(message, new HashMap<>());
         messageEntries.put(message.getId(), message);
     }

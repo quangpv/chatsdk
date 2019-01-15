@@ -13,5 +13,5 @@ public interface OnMessageListener extends StanzaListener {
         }
     }
 
-    void processMessage(Message packet);
+    void processMessage(Message message);
 }

@@ -8,6 +8,7 @@ import org.jivesoftware.smack.ReconnectionManager;
 import org.jivesoftware.smack.SmackException;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
+import org.jivesoftware.smack.filter.AndFilter;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.roster.Roster;
@@ -17,6 +18,7 @@ import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
 import org.jivesoftware.smackx.chatstates.ChatState;
 import org.jivesoftware.smackx.chatstates.packet.ChatStateExtension;
 import org.jivesoftware.smackx.disco.ServiceDiscoveryManager;
+import org.jivesoftware.smackx.ping.PingManager;
 import org.jivesoftware.smackx.receipts.DeliveryReceipt;
 import org.jivesoftware.smackx.receipts.DeliveryReceiptManager;
 
@@ -32,19 +34,32 @@ import ps.billyphan.chatsdk.listeners.OnReceiptListener;
 import ps.billyphan.chatsdk.models.ReceiptState;
 
 public class XMPPChatConnection extends XMPPTCPConnection {
+
+    private final Roster mRoster;
+    private OnMessageListener mOnPrivateInComingListener;
+    private OnMessageListener mOnPrivateOutGoingListener;
+    private OnMessageListener mOnGroupInComingListener;
+    private OnMessageListener mOnGroupOutGoingListener;
     private OnChatMessageListener mOnSentListener;
-    private OnChatMessageListener mOnInComingListener;
-    private OnChatMessageListener mOnOutGoingListener;
 
     private OnMessageListener mOnNotifyReadListener;
     private OnMessageListener mOnStateChangeListener;
+
     private OnMessageListener mOnReceivedListener;
     private OnMessageListener mOnReadListener;
+
+    private ConnectionListener mConnectionListener;
+    private Message mLastSent;
 
     public XMPPChatConnection(XMPPTCPConnectionConfiguration config) {
         super(config);
         // Enable roster
-        Roster.getInstanceFor(this).setSubscriptionMode(Roster.SubscriptionMode.accept_all);
+        mRoster = Roster.getInstanceFor(this);
+        mRoster.setSubscriptionMode(Roster.SubscriptionMode.accept_all);
+
+        //Ping
+        PingManager.setDefaultPingInterval(10);
+        PingManager.getInstanceFor(this);
 
         // Enable stream
         setUseStreamManagement(true);
@@ -67,8 +82,8 @@ public class XMPPChatConnection extends XMPPTCPConnection {
         discoveryManager.addFeature(DeliveryReceipt.NAMESPACE);
     }
 
-    public void connect(String userName, String password, Consumer<Boolean> listener) throws InterruptedException, IOException, SmackException, XMPPException {
-        addConnectionListener(new ConnectionListener() {
+    public void connect(String userName, String password, Consumer<Boolean> listener) throws InterruptedException, XMPPException, SmackException, IOException {
+        addConnectionListener(mConnectionListener = new ConnectionListener() {
             @Override
             public void connected(XMPPConnection connection) {
                 Log.e("DEBUG", "connected");
@@ -94,10 +109,22 @@ public class XMPPChatConnection extends XMPPTCPConnection {
         login(userName, password);
     }
 
+    @Override
+    public void disconnect() {
+        unregisterAll();
+        removeConnectionListener(mConnectionListener);
+        notifyGone();
+        super.disconnect();
+    }
+
     public void registryReceiptListener(OnReceiptListener onReceiptListener) {
         addStanzaAcknowledgedListener(mOnSentListener = packet -> onReceiptListener.onReceived(packet, ReceiptState.SENT));
-        addSyncStanzaListener(mOnReceivedListener = packet -> onReceiptListener.onReceived(packet, ReceiptState.RECEIVED), ReceiptFilter.RECEIVED);
-        addSyncStanzaListener(mOnReadListener = packet -> onReceiptListener.onReceived(packet, ReceiptState.READ), ReceiptFilter.READ);
+
+        addSyncStanzaListener(mOnReceivedListener = packet -> onReceiptListener.onReceived(packet, ReceiptState.RECEIVED),
+                new AndFilter(ReceiptFilter.RECEIVED, MessageFilter.PRIVATE_OR_GROUP_EXCEPT_ME));
+
+        addSyncStanzaListener(mOnReadListener = packet -> onReceiptListener.onReceived(packet, ReceiptState.READ),
+                new AndFilter(ReceiptFilter.READ, MessageFilter.PRIVATE_OR_GROUP_EXCEPT_ME));
     }
 
     public void unregisterAll() {
@@ -107,26 +134,47 @@ public class XMPPChatConnection extends XMPPTCPConnection {
         removeStanzaAcknowledgedListener(mOnReadListener);
 
         //Unregister message
-        removeSyncStanzaListener(mOnInComingListener);
-        removeSyncStanzaListener(mOnOutGoingListener);
-        removeSyncStanzaListener(mOnNotifyReadListener);
+        removeSyncStanzaListener(mOnPrivateInComingListener);
+
+        removeSyncStanzaListener(mOnGroupInComingListener);
         removeSyncStanzaListener(mOnStateChangeListener);
+
+        // Out
+        removeStanzaInterceptor(mOnPrivateOutGoingListener);
+        removeStanzaInterceptor(mOnGroupOutGoingListener);
+        removeStanzaInterceptor(mOnNotifyReadListener);
     }
 
     public void registryInComingListener(Consumer<Message> listener) {
-        addSyncStanzaListener(mOnInComingListener = listener::accept, MessageFilter.PRIVATE_OR_GROUP);
+        addSyncStanzaListener(mOnPrivateInComingListener = listener::accept, MessageFilter.PRIVATE_BODY);
+        addSyncStanzaListener(mOnGroupInComingListener = message -> {
+            if (mLastSent == null) {
+                listener.accept(message);
+                return;
+            }
+            if (!mLastSent.getStanzaId().equals(message.getStanzaId()))
+                listener.accept(message);
+        }, MessageFilter.GROUP_BODY);
     }
 
     public void registryOutGoingListener(Consumer<Message> listener) {
-        addStanzaInterceptor(mOnOutGoingListener = listener::accept, MessageFilter.PRIVATE_OR_GROUP);
+        addStanzaInterceptor(mOnPrivateOutGoingListener = listener::accept, MessageFilter.PRIVATE_BODY);
+        addStanzaInterceptor(mOnGroupOutGoingListener = message -> {
+            mLastSent = message;
+            listener.accept(message);
+        }, MessageFilter.GROUP_BODY);
     }
 
     public void registryOnNotifyReadListener(Consumer<Message> listener) {
-        addStanzaInterceptor(mOnNotifyReadListener = listener::accept, new ReceiptFilter(ReadReceipt.class));
+        addStanzaInterceptor(mOnNotifyReadListener = listener::accept, new AndFilter(
+                MessageFilter.PRIVATE_OR_GROUP_EXCEPT_ME,
+                new ReceiptFilter(ReadReceipt.class)
+        ));
     }
 
     public void registryStateListener(Consumer<Message> listener) {
-        addSyncStanzaListener(mOnStateChangeListener = listener::accept, new StateFilter());
+        addSyncStanzaListener(mOnStateChangeListener = listener::accept,
+                new AndFilter(MessageFilter.PRIVATE_OR_GROUP_EXCEPT_ME, new StateFilter()));
     }
 
     public void notifyGone() {
@@ -149,5 +197,9 @@ public class XMPPChatConnection extends XMPPTCPConnection {
         } catch (SmackException.NotConnectedException | InterruptedException e) {
             e.printStackTrace();
         }
+    }
+
+    public Roster getRoster() {
+        return mRoster;
     }
 }

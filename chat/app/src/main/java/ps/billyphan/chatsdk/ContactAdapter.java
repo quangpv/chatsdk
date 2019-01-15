@@ -59,6 +59,12 @@ class ContactAdapter extends RecyclerView.Adapter<ContactAdapter.ViewHolder> {
         return mItems.size();
     }
 
+    public void addAll(List<Contact> contacts) {
+        mItems.clear();
+        mItems.addAll(contacts);
+        notifyDataSetChanged();
+    }
+
     class ViewHolder extends RecyclerView.ViewHolder implements Observer<Contact> {
         private final TextView txtName;
         private final TextView txtNumOfInComing;
@@ -80,7 +86,7 @@ class ContactAdapter extends RecyclerView.Adapter<ContactAdapter.ViewHolder> {
         public void bind(Contact contact) {
             contact.addObserver(this);
             mItem = contact;
-            txtName.setText(contact.name);
+            txtName.setText(contact.contactId);
             txtNumOfInComing.setText(contact.getNumOfUnread());
         }
 

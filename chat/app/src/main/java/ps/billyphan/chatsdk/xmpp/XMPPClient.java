@@ -1,9 +1,7 @@
 package ps.billyphan.chatsdk.xmpp;
 
-import android.arch.lifecycle.Lifecycle;
-import android.arch.lifecycle.LifecycleObserver;
 import android.arch.lifecycle.LifecycleOwner;
-import android.arch.lifecycle.OnLifecycleEvent;
+import android.content.Context;
 import android.support.v4.util.Consumer;
 import android.util.Log;
 
@@ -16,35 +14,45 @@ import java.util.HashMap;
 import java.util.Map;
 
 import ps.billyphan.chatsdk.ChatExecutors;
+import ps.billyphan.chatsdk.chatclient.ChatClient;
+import ps.billyphan.chatsdk.chatclient.GroupChat;
 import ps.billyphan.chatsdk.chatclient.PrivateChat;
 import ps.billyphan.chatsdk.datasource.ChatDataSource;
+import ps.billyphan.chatsdk.models.Contact;
+import ps.billyphan.chatsdk.models.FriendContact;
 import ps.billyphan.chatsdk.utils.JidFormatter;
 
 public class XMPPClient {
     private static final int PORT = 5222;
     public static final String HOST = "xmpp.jp";
+    public static final String GROUP = "conference.xmpp.jp";
     private static final CharSequence RESOURCE = "amazon";
     private static XMPPClient sInstance;
     private String mUserName = "quangpv1";
     private String mPassword = "abc12345";
     private XMPPChatConnection mConnection;
-    private ChatDataSource mChatDataSource = new ChatDataSource();
-    private Map<String, PrivateChat> mChatCache = new HashMap<>();
+    private ChatDataSource mChatDataSource;
+    private Map<String, ChatClient> mChat = new HashMap<>();
 
     static {
         ExtensionLoader.load();
     }
 
-    public XMPPClient() {
+    public static void init(Context context) {
+        sInstance = new XMPPClient(context);
+    }
+
+    private XMPPClient(Context context) {
         try {
+            mChatDataSource = new ChatDataSource(context);
             mConnection = new XMPPChatConnection(XMPPTCPConnectionConfiguration.builder()
-                    .setPort(PORT)
-                    .setCompressionEnabled(false)
-                    .setHost(HOST)
                     .setXmppDomain(JidFormatter.domain(HOST))
+                    .setHost(HOST)
                     .setResource(RESOURCE)
                     .setSecurityMode(ConnectionConfiguration.SecurityMode.required)
                     .setSendPresence(false)
+                    .setKeystoreType(null)
+                    .setCompressionEnabled(true)
                     .build());
         } catch (XmppStringprepException e) {
             e.printStackTrace();
@@ -53,7 +61,6 @@ public class XMPPClient {
     }
 
     public static synchronized XMPPClient getInstance() {
-        if (sInstance == null) sInstance = new XMPPClient();
         return sInstance;
     }
 
@@ -74,46 +81,43 @@ public class XMPPClient {
     }
 
     private void registries() {
-        mConnection.registryOnNotifyReadListener(message -> mChatDataSource.updateRead(message));
-        mConnection.registryInComingListener(message -> mChatDataSource.addInComing(message));
-        mConnection.registryOutGoingListener(message -> mChatDataSource.addOutGoing(message));
-        mConnection.registryReceiptListener((message, state) -> mChatDataSource.updateReceipt(message, state));
-        mConnection.registryStateListener(message -> mChatDataSource.updateState(message));
+        mConnection.registryOnNotifyReadListener(message -> ChatExecutors.inBackground(() -> mChatDataSource.updateRead(message)));
+        mConnection.registryInComingListener(message -> ChatExecutors.inBackground(() -> mChatDataSource.addInComing(message)));
+        mConnection.registryOutGoingListener(message -> ChatExecutors.inBackground(() -> mChatDataSource.addOutGoing(message)));
+        mConnection.registryReceiptListener((message, state) -> ChatExecutors.inBackground(() -> mChatDataSource.updateReceipt(message, state)));
+        mConnection.registryStateListener(message -> ChatExecutors.inBackground(() -> mChatDataSource.updateState(message)));
     }
 
     public void setUserName(String userName) {
         mUserName = userName;
     }
 
-    public PrivateChat getPrivateChat(LifecycleOwner owner, String userId) {
-        PrivateChat privateChat;
-        if (mChatCache.containsKey(userId)) {
-            privateChat = mChatCache.get(userId);
+    public ChatClient getChat(LifecycleOwner owner, Contact contact) {
+        String id = contact.contactId;
+        ChatClient chat;
+        if (mChat.containsKey(id)) {
+            chat = mChat.get(id);
         } else {
-            privateChat = new PrivateChat(mChatDataSource, userId);
-            mChatCache.put(userId, privateChat);
+            if (contact instanceof FriendContact)
+                chat = new PrivateChat(mChatDataSource, id);
+            else chat = new GroupChat(mChatDataSource, id);
+            mChat.put(id, chat);
         }
-        assert privateChat != null;
-        privateChat.setLifecycle(owner.getLifecycle());
-        return privateChat;
+        assert chat != null;
+        chat.setLifecycle(owner.getLifecycle());
+        return chat;
     }
 
     public void disconnect() {
         Log.e("DEBUG", "disconnect");
-        ChatExecutors.inBackground(() -> {
-            mConnection.unregisterAll();
-            mConnection.notifyGone();
-            mConnection.notifyPresence(Presence.Type.unavailable);
-            mConnection.disconnect();
-            sInstance = null;
-        });
-    }
-
-    public ChatDataSource getDataSource() {
-        return mChatDataSource;
+        ChatExecutors.inBackground(() -> mConnection.disconnect());
     }
 
     public String getMyId() {
         return mUserName;
+    }
+
+    public ContactClient getContact() {
+        return new ContactClient(mUserName, mConnection, mChatDataSource);
     }
 }

@@ -1,4 +1,4 @@
-package ps.billyphan.chatsdk;
+package ps.billyphan.chatsdk.listeners;
 
 import android.text.Editable;
 import android.text.TextWatcher;

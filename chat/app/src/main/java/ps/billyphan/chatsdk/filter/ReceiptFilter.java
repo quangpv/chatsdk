@@ -1,17 +1,15 @@
 package ps.billyphan.chatsdk.filter;
 
-import org.jivesoftware.smack.filter.AndFilter;
 import org.jivesoftware.smack.filter.StanzaFilter;
 import org.jivesoftware.smack.filter.StanzaTypeFilter;
 import org.jivesoftware.smack.packet.Stanza;
 import org.jivesoftware.smackx.receipts.DeliveryReceipt;
 
 import ps.billyphan.chatsdk.extension.ReadReceipt;
-import ps.billyphan.chatsdk.filter.entry.MessageFilter;
 
 public class ReceiptFilter implements StanzaFilter {
-    public static final StanzaFilter RECEIVED = new AndFilter(MessageFilter.PRIVATE_OR_GROUP, new ReceiptFilter(DeliveryReceipt.class));
-    public static final StanzaFilter READ = new AndFilter(MessageFilter.PRIVATE_OR_GROUP, new ReceiptFilter(ReadReceipt.class));
+    public static final StanzaFilter RECEIVED = new ReceiptFilter(DeliveryReceipt.class);
+    public static final StanzaFilter READ = new ReceiptFilter(ReadReceipt.class);
 
     private final Class<?> mType;
 

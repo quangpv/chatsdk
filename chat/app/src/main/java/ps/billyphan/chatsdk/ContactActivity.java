@@ -8,6 +8,7 @@ import android.view.View;
 import android.widget.EditText;
 
 import ps.billyphan.chatsdk.models.Contact;
+import ps.billyphan.chatsdk.xmpp.ContactClient;
 import ps.billyphan.chatsdk.xmpp.XMPPClient;
 
 public class ContactActivity extends AppCompatActivity {
@@ -15,6 +16,7 @@ public class ContactActivity extends AppCompatActivity {
     private EditText mEdtContact;
     private ContactAdapter mContactAdapter;
     private XMPPClient mXMPPClient;
+    private ContactClient mContact;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -24,9 +26,10 @@ public class ContactActivity extends AppCompatActivity {
         mEdtContact = findViewById(R.id.edtContact);
         mContactAdapter = new ContactAdapter(findViewById(R.id.recvContact));
         mXMPPClient = XMPPClient.getInstance();
-
+        mContact = mXMPPClient.getContact();
         mBtnAdd.setOnClickListener(v -> addContactIfCan());
         mContactAdapter.setOnItemClickListener(this::openChat);
+        mContact.loadFriends(contacts -> mContactAdapter.addAll(contacts));
     }
 
     private void openChat(Contact contact) {
@@ -38,7 +41,7 @@ public class ContactActivity extends AppCompatActivity {
     private void addContactIfCan() {
         String text = mEdtContact.getText().toString();
         if (text.length() == 0) return;
-        mContactAdapter.add(new Contact(text, XMPPClient.getInstance()));
+        mContactAdapter.add(mContact.newFriend(text));
         mEdtContact.setText("");
     }
 

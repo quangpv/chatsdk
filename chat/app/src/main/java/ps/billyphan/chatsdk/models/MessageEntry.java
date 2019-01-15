@@ -1,27 +1,33 @@
 package ps.billyphan.chatsdk.models;
 
-import org.jivesoftware.smack.packet.Message;
+import android.arch.persistence.room.Entity;
+import android.arch.persistence.room.PrimaryKey;
+import android.support.annotation.NonNull;
 
-import java.util.Set;
+import org.jivesoftware.smack.packet.Message;
 
 import ps.billyphan.chatsdk.utils.PackageAnalyze;
 
+@Entity
 public class MessageEntry extends Observable {
-    private final String mId;
-    private final String mFromId;
-    private final String mToId;
-    private final String mBody;
-    private final long mTimeReceived;
-    private final Set<Message.Body> mBodies;
+    @PrimaryKey
+    @NonNull
+    private String mId;
+    private String mFromId;
+    private String mToId;
+    private String mBody;
+    private long mTimeReceived;
     private int mReceipt = ReceiptState.NONE;
-    private boolean mSendFromFriend = true;
+    private boolean mFriendMessage = true;
+
+    public MessageEntry() {
+    }
 
     public MessageEntry(Message message) {
         mId = message.getStanzaId();
         mFromId = PackageAnalyze.getFromId(message);
         mToId = PackageAnalyze.getToId(message);
         mBody = message.getBody();
-        mBodies = message.getBodies();
         mTimeReceived = System.currentTimeMillis();
     }
 
@@ -53,8 +59,28 @@ public class MessageEntry extends Observable {
         return mReceipt == ReceiptState.SENDING || mReceipt == ReceiptState.SENT;
     }
 
-    public Set<Message.Body> getBodies() {
-        return mBodies;
+    public long getTimeReceived() {
+        return mTimeReceived;
+    }
+
+    public void setId(String id) {
+        mId = id;
+    }
+
+    public void setFromId(String fromId) {
+        mFromId = fromId;
+    }
+
+    public void setToId(String toId) {
+        mToId = toId;
+    }
+
+    public void setBody(String body) {
+        mBody = body;
+    }
+
+    public void setTimeReceived(long timeReceived) {
+        mTimeReceived = timeReceived;
     }
 
     public int getReceipt() {
@@ -80,11 +106,11 @@ public class MessageEntry extends Observable {
         return mTimeReceived - t1.mTimeReceived > 0 ? 1 : -1;
     }
 
-    public boolean isSendFromFriend() {
-        return mSendFromFriend;
+    public boolean isFriendMessage() {
+        return mFriendMessage;
     }
 
-    public void setSendFromFriend(boolean b) {
-        mSendFromFriend = b;
+    public void setFriendMessage(boolean b) {
+        mFriendMessage = b;
     }
 }
