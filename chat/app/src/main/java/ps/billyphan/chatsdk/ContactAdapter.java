@@ -12,7 +12,7 @@ import android.widget.TextView;
 import java.util.ArrayList;
 import java.util.List;
 
-import ps.billyphan.chatsdk.models.Contact;
+import com.kantek.chatsdk.models.Contact;
 
 class ContactAdapter extends RecyclerView.Adapter<ContactAdapter.ViewHolder> {
     private List<Contact> mItems;

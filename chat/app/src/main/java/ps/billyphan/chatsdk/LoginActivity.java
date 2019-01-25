@@ -8,7 +8,7 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
 
-import ps.billyphan.chatsdk.xmpp.XMPPClient;
+import com.kantek.chatsdk.xmpp.XMPPClient;
 
 public class LoginActivity extends AppCompatActivity {
     private EditText edtUserName;
@@ -28,6 +28,7 @@ public class LoginActivity extends AppCompatActivity {
 
     private void login() {
         mXMPPClient.setUserName(edtUserName.getText().toString());
+        mXMPPClient.setPassword(edtPassword.getText().toString());
         mXMPPClient.connect(isLogged -> {
             if (isLogged) openContact();
             else showError();

@@ -6,10 +6,10 @@ import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.EditText;
 
-import ps.billyphan.chatsdk.chatclient.ChatClient;
-import ps.billyphan.chatsdk.listeners.OnNotifyTypingListener;
-import ps.billyphan.chatsdk.models.Contact;
-import ps.billyphan.chatsdk.xmpp.XMPPClient;
+import com.kantek.chatsdk.chatclient.ChatClient;
+import com.kantek.chatsdk.listeners.OnNotifyTypingListener;
+import com.kantek.chatsdk.models.Contact;
+import com.kantek.chatsdk.xmpp.XMPPClient;
 
 public class ChatActivity extends AppCompatActivity {
     private ChatClient mChat;

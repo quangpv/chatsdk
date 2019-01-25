@@ -11,13 +11,14 @@
         android:id="@+id/edtUsername"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="quangpv"
+        android:text="U418688040"
         android:hint="Username" />
 
     <EditText
         android:id="@+id/edtPassword"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:text="R418688040"
         android:hint="Password" />
 
     <Button

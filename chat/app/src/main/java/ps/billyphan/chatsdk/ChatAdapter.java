@@ -14,8 +14,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import ps.billyphan.chatsdk.models.MessageEntry;
-import ps.billyphan.chatsdk.models.StateEntry;
+import com.kantek.chatsdk.models.MessageEntry;
+import com.kantek.chatsdk.models.StateEntry;
 
 class ChatAdapter extends RecyclerView.Adapter {
     private static final int TYPE_TYPING = 0;

@@ -2,7 +2,7 @@ package ps.billyphan.chatsdk;
 
 import android.app.Application;
 
-import ps.billyphan.chatsdk.xmpp.XMPPClient;
+import com.kantek.chatsdk.xmpp.XMPPClient;
 
 public class MyApplication extends Application {
     @Override

@@ -7,9 +7,9 @@ import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.EditText;
 
-import ps.billyphan.chatsdk.models.Contact;
-import ps.billyphan.chatsdk.xmpp.ContactClient;
-import ps.billyphan.chatsdk.xmpp.XMPPClient;
+import com.kantek.chatsdk.models.Contact;
+import com.kantek.chatsdk.xmpp.ContactClient;
+import com.kantek.chatsdk.xmpp.XMPPClient;
 
 public class ContactActivity extends AppCompatActivity {
     private View mBtnAdd;
