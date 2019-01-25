@@ -4,6 +4,17 @@ import android.content.Context;
 import android.support.v4.util.Consumer;
 import android.util.Log;
 
+import com.kantek.chatsdk.filter.entry.StateEntryFilter;
+import com.kantek.chatsdk.filter.entry.ChatFilter;
+import com.kantek.chatsdk.models.AtomicUnRead;
+import com.kantek.chatsdk.models.Contact;
+import com.kantek.chatsdk.models.MessageEntry;
+import com.kantek.chatsdk.models.PairHashMap;
+import com.kantek.chatsdk.models.ReceiptState;
+import com.kantek.chatsdk.models.StateEntry;
+import com.kantek.chatsdk.utils.PackageAnalyze;
+import com.kantek.chatsdk.xmpp.XMPPChatConnection;
+
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.tcp.XMPPTCPConnection;
 import org.jivesoftware.smackx.offline.OfflineMessageHeader;
@@ -14,37 +25,26 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.kantek.chatsdk.filter.StateEntryFilter;
-import com.kantek.chatsdk.filter.UnreadFilter;
-import com.kantek.chatsdk.filter.entry.ChatFilter;
-import com.kantek.chatsdk.models.MessageEntry;
-import com.kantek.chatsdk.models.PairHashMap;
-import com.kantek.chatsdk.models.ReceiptState;
-import com.kantek.chatsdk.models.StateEntry;
-import com.kantek.chatsdk.utils.PackageAnalyze;
-import com.kantek.chatsdk.xmpp.XMPPChatConnection;
-
 public class ChatDataSource {
-    private final ChatConversation mUnread;
-    private final ChatSending mSending;
     private final PairHashMap<StateEntry> mState;
     private OfflineMessageManager mOfflineMessageManager;
     private XMPPChatConnection mConnection;
     private Map<Consumer<MessageEntry>, ChatFilter<MessageEntry>> mOnComingListeners = new HashMap<>();
     private Map<Consumer<MessageEntry>, ChatFilter<MessageEntry>> mOnOutGoingListeners = new HashMap<>();
+    private Map<Consumer<MessageEntry>, ChatFilter<MessageEntry>> mOnReceiptListeners = new HashMap<>();
+    private Map<Consumer<Contact>, ChatFilter<Contact>> mOnUnReadChangedListener = new HashMap<>();
     private Map<Consumer<StateEntry>, ChatFilter<StateEntry>> mOnStateListeners = new HashMap<>();
-    private Map<Consumer<Integer>, UnreadFilter> mOnUnreadChangedListeners = new HashMap<>();
-    private ChatDatabase.MessageDao mChatArchived;
+    private ChatDatabase.MessageDao mMessageStorage;
+    private ChatDatabase.ContactDao mContactStorage;
 
     public XMPPTCPConnection getConnection() {
         return mConnection;
     }
 
     public ChatDataSource(Context context) {
-        mUnread = new ChatConversation();
-        mSending = new ChatSending();
         mState = new PairHashMap<>();
-        mChatArchived = ChatDatabase.getInstance(context).messageDao();
+        mMessageStorage = ChatDatabase.getInstance(context).messageDao();
+        mContactStorage = ChatDatabase.getInstance(context).contactDao();
     }
 
     public void fetchOfflineMessages() {
@@ -57,11 +57,14 @@ public class ChatDataSource {
                 nodes.add(offlineMessageHeader.getStamp());
             }
             List<MessageEntry> messageEntries = new ArrayList<>();
+            AtomicUnRead unread = new AtomicUnRead();
             for (Message message : mOfflineMessageManager.getMessages(nodes)) {
-                MessageEntry messageEntry = mUnread.push(message);
+                MessageEntry messageEntry = new MessageEntry(message);
                 messageEntries.add(messageEntry);
+                unread.putOrIncrease(messageEntry.getFromId(), messageEntry.getToId(), 1);
             }
-            mChatArchived.addAll(messageEntries);
+            mMessageStorage.addAll(messageEntries);
+            unread.forEach((pair, number) -> mContactStorage.addUnRead(pair.first, pair.second, number));
             mOfflineMessageManager.deleteMessages();
         } catch (Exception e) {
             e.printStackTrace();
@@ -73,41 +76,57 @@ public class ChatDataSource {
         mOfflineMessageManager = new OfflineMessageManager(connection);
     }
 
-    public List<MessageEntry> getMessages(String id1, String id2) {
-        return mChatArchived.getByPairChat(id1, id2);
-    }
-
     public void addInComing(Message message) {
-        MessageEntry messageEntry = mUnread.push(message);
+        MessageEntry messageEntry = new MessageEntry(message);
         messageEntry.setFriendMessage(true);
-        mChatArchived.add(messageEntry);
+        mMessageStorage.add(messageEntry);
+        mContactStorage.increaseUnRead(messageEntry.getFromId(), messageEntry.getToId());
         notifyChanged(mOnComingListeners, messageEntry);
-        notifyUnreadChanged(messageEntry);
+        notifyChanged(mOnUnReadChangedListener, mContactStorage.get(messageEntry.getFromId(), messageEntry.getToId()));
         Log.e("CHAT_RECEIVED", message.getBody());
     }
 
-    public int getUnreadSizeOfPair(String id1, String id2) {
-        return mUnread.getUnreadSizeOfPair(id1, id2);
-    }
-
-    public void updateRead(Message message) {
-        MessageEntry messageEntry = mUnread.popSibling(message);
-        if (messageEntry != null)
-            notifyUnreadChanged(messageEntry);
-    }
-
     public void addOutGoing(Message message) {
-        MessageEntry messageEntry = mSending.push(message);
+        MessageEntry messageEntry = new MessageEntry(message);
         messageEntry.setReceipt(ReceiptState.SENDING);
-        mChatArchived.add(messageEntry);
+        mMessageStorage.add(messageEntry);
         notifyChanged(mOnOutGoingListeners, messageEntry);
         Log.e("CHAT_SEND", message.getBody());
     }
 
+    /**
+     * Update message state of message received has to read by me, and decrease num of unread
+     * between me and friend or group
+     *
+     * @param message from me sent to friend to notify i have to read it
+     *                to their received by them
+     */
+    public void updateReadMessageReceived(Message message) {
+        String from = PackageAnalyze.getFromId(message);
+        String to = PackageAnalyze.getToId(message);
+        mMessageStorage.updateRead(message.getStanzaId(), to, from);
+        mContactStorage.markToRead(PackageAnalyze.getFromId(message),
+                PackageAnalyze.getToId(message));
+        notifyChanged(mOnUnReadChangedListener, mContactStorage.get(from, to));
+        Log.e("CHAT_READ_RECEIVED", message.getStanzaId());
+    }
+
+    /**
+     * Update message receipt state sent from me to friend or group
+     *
+     * @param message from friend sent to me to notify this message same id sent from me
+     *                to their received by them
+     * @param state   Receipt state of message @see {@link ReceiptState}
+     */
     public void updateReceipt(Message message, int state) {
+        String id = message.getStanzaId();
+        String from = PackageAnalyze.getFromId(message);
+        String to = PackageAnalyze.getToId(message);
         if (state == ReceiptState.READ) {
-            mChatArchived.update(mSending.updateRead(message));
-        } else mChatArchived.update(mSending.updateReceipt(message, state));
+            mMessageStorage.updateRead(id, to, from);
+        } else mMessageStorage.updateReceipt(id, to, from, state);
+        MessageEntry messageEntry = mMessageStorage.get(id);
+        notifyChanged(mOnReceiptListeners, messageEntry);
         Log.e("CHAT_RECEIPT", message.getStanzaId());
     }
 
@@ -119,6 +138,10 @@ public class ChatDataSource {
         notifyStateChanged(stateEntry);
     }
 
+    public int getUnreadSizeOfPair(String myId, String withId) {
+        return mContactStorage.getNumOfUnread(withId, myId);
+    }
+
     @SuppressWarnings("all")
     private void notifyStateChanged(StateEntry stateEntry) {
         for (Consumer<StateEntry> listener : mOnStateListeners.keySet()) {
@@ -128,24 +151,16 @@ public class ChatDataSource {
     }
 
     @SuppressWarnings("all")
-    private void notifyChanged(Map<Consumer<MessageEntry>, ChatFilter<MessageEntry>> listeners, MessageEntry messageEntry) {
-        for (Consumer<MessageEntry> listener : listeners.keySet()) {
-            if (listeners.get(listener).accept(messageEntry))
-                listener.accept(messageEntry);
+    private <T> void notifyChanged(Map<Consumer<T>, ChatFilter<T>> listeners, T item) {
+        for (Consumer<T> listener : listeners.keySet()) {
+            if (listeners.get(listener).accept(item))
+                listener.accept(item);
         }
     }
 
-    @SuppressWarnings("all")
-    private void notifyUnreadChanged(MessageEntry messageEntry) {
-        for (Consumer<Integer> listener : mOnUnreadChangedListeners.keySet()) {
-            if (mOnUnreadChangedListeners.get(listener).accept(messageEntry))
-                listener.accept(mUnread.getUnreadSizeOfPair(messageEntry));
-        }
-    }
-
-    public void addOnUnreadChangedListener(Consumer<Integer> listener, UnreadFilter filter) {
-        if (!mOnUnreadChangedListeners.containsKey(listener))
-            mOnUnreadChangedListeners.put(listener, filter);
+    public void addOnUnReadChangedListener(Consumer<Contact> listener, ChatFilter<Contact> messageFilter) {
+        if (!mOnUnReadChangedListener.containsKey(listener))
+            mOnUnReadChangedListener.put(listener, messageFilter);
     }
 
     public void addOnInComingListener(Consumer<MessageEntry> listener, ChatFilter<MessageEntry> messageFilter) {
@@ -164,12 +179,22 @@ public class ChatDataSource {
         }
     }
 
+    public void addOnReceiptListeners(Consumer<MessageEntry> onStateListener, ChatFilter<MessageEntry> filter) {
+        if (!mOnReceiptListeners.containsKey(onStateListener)) {
+            mOnReceiptListeners.put(onStateListener, filter);
+        }
+    }
+
     public void removeOnStateListener(Consumer<StateEntry> listener) {
         mOnStateListeners.remove(listener);
     }
 
-    public void removeUnreadChangedListener(Consumer<Integer> listener) {
-        mOnUnreadChangedListeners.remove(listener);
+    public void removeOnUnReadChangedListener(Consumer<Contact> listener) {
+        mOnUnReadChangedListener.remove(listener);
+    }
+
+    public void removeOnReceiptListener(Consumer<MessageEntry> listener) {
+        mOnReceiptListeners.remove(listener);
     }
 
     public void removeOnMessageComingListener(Consumer<MessageEntry> onMessageComingListener) {
@@ -178,5 +203,14 @@ public class ChatDataSource {
 
     public void removeOnMessageOutGoingListener(Consumer<MessageEntry> listener) {
         mOnOutGoingListeners.remove(listener);
+    }
+
+    public List<Contact> addContacts(List<Contact> contacts) {
+        mContactStorage.addAll(contacts);
+        return mContactStorage.getPrivate();
+    }
+
+    public List<MessageEntry> getByPair(String myId, String withId) {
+        return mMessageStorage.getByPair(myId, withId);
     }
 }

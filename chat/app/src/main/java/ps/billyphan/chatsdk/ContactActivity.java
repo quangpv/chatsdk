@@ -11,12 +11,13 @@ import com.kantek.chatsdk.models.Contact;
 import com.kantek.chatsdk.xmpp.ContactClient;
 import com.kantek.chatsdk.xmpp.XMPPClient;
 
+
 public class ContactActivity extends AppCompatActivity {
     private View mBtnAdd;
     private EditText mEdtContact;
     private ContactAdapter mContactAdapter;
     private XMPPClient mXMPPClient;
-    private ContactClient mContact;
+    private ContactClient mContactClient;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -26,10 +27,10 @@ public class ContactActivity extends AppCompatActivity {
         mEdtContact = findViewById(R.id.edtContact);
         mContactAdapter = new ContactAdapter(findViewById(R.id.recvContact));
         mXMPPClient = XMPPClient.getInstance();
-        mContact = mXMPPClient.getContact();
+        mContactClient = mXMPPClient.getContact(this);
         mBtnAdd.setOnClickListener(v -> addContactIfCan());
         mContactAdapter.setOnItemClickListener(this::openChat);
-        mContact.loadFriends(contacts -> mContactAdapter.addAll(contacts));
+        mContactClient.asLiveData().observe(this, mContactAdapter::submitList);
     }
 
     private void openChat(Contact contact) {
@@ -41,7 +42,7 @@ public class ContactActivity extends AppCompatActivity {
     private void addContactIfCan() {
         String text = mEdtContact.getText().toString();
         if (text.length() == 0) return;
-        mContactAdapter.add(mContact.newFriend(text));
+        mContactClient.newFriend(text);
         mEdtContact.setText("");
     }
 

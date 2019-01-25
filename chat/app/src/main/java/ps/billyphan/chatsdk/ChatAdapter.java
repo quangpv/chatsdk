@@ -1,90 +1,55 @@
 package ps.billyphan.chatsdk;
 
-import android.arch.lifecycle.Observer;
 import android.support.annotation.NonNull;
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import com.kantek.chatsdk.models.MessageEntry;
-import com.kantek.chatsdk.models.StateEntry;
+import com.kantek.chatsdk.models.PageAdapter;
 
-class ChatAdapter extends RecyclerView.Adapter {
+class ChatAdapter extends PageAdapter<MessageEntry> {
     private static final int TYPE_TYPING = 0;
     private static final int TYPE_ITEM = 1;
-    private Map<String, MessageEntry> mMapItems = new HashMap<>();
-    private List<MessageEntry> mItems = new ArrayList<>();
-    private StateEntry mTyping;
+    private boolean mTyping = false;
 
     public ChatAdapter(RecyclerView view) {
         view.setAdapter(this);
     }
 
-    public void add(MessageEntry message) {
-        mMapItems.put(message.getId(), message);
-        mItems.add(message);
-        refreshView();
-    }
-
-    public void typing(StateEntry message) {
-        mTyping = message;
-        refreshView();
-    }
-
-    public void addAll(List<MessageEntry> messages) {
-        for (MessageEntry message : messages) {
-            mMapItems.put(message.getId(), message);
-            mItems.add(message);
-        }
-        refreshView();
-    }
-
-    private void refreshView() {
-        notifyDataSetChanged();
+    public void typing(boolean isTyping) {
+        if (isTyping == mTyping) return;
+        int itemCount = super.getItemCount();
+        mTyping = isTyping;
+        if (mTyping) notifyItemInserted(itemCount);
+        else notifyItemRemoved(itemCount);
     }
 
     @Override
     public int getItemViewType(int position) {
-        return (isTyping() && (position == getItemCount() - 1)) ? TYPE_TYPING : TYPE_ITEM;
+        return (mTyping && (position == super.getItemCount())) ? TYPE_TYPING : TYPE_ITEM;
     }
 
     @NonNull
     @Override
-    public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup viewGroup, int i) {
+    public PageHolder onCreateViewHolder(@NonNull ViewGroup viewGroup, int i) {
         if (i == TYPE_TYPING) return new TypingViewHolder(viewGroup);
         return new ViewHolder(viewGroup);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder viewHolder, int i) {
-        if (!(viewHolder instanceof TypingViewHolder))
-            ((ViewHolder) viewHolder).bind(mItems.get(i));
-    }
-
-    private boolean isTyping() {
-        return (mTyping != null && mTyping.isTyping());
-    }
-
-    @Override
-    public void onViewRecycled(@NonNull RecyclerView.ViewHolder holder) {
-        if (holder instanceof ViewHolder) ((ViewHolder) holder).onRecycled();
-        super.onViewRecycled(holder);
+    public void onBindViewHolder(@NonNull PageHolder pageHolder, int i) {
+        if (!(pageHolder instanceof TypingViewHolder)) super.onBindViewHolder(pageHolder, i);
     }
 
     @Override
     public int getItemCount() {
-        return mItems.size() + (isTyping() ? 1 : 0);
+        return super.getItemCount() + (mTyping ? 1 : 0);
     }
 
-    private class TypingViewHolder extends RecyclerView.ViewHolder {
+    private class TypingViewHolder extends PageHolder<String> {
         private final TextView txtMessage;
         private final TextView txtReceipt;
 
@@ -98,10 +63,9 @@ class ChatAdapter extends RecyclerView.Adapter {
         }
     }
 
-    private class ViewHolder extends RecyclerView.ViewHolder implements Observer<MessageEntry> {
+    private class ViewHolder extends PageHolder<MessageEntry> {
         private final TextView txtMessage;
         private final TextView txtReceipt;
-        private MessageEntry mItem;
 
         public ViewHolder(ViewGroup viewGroup) {
             super(LayoutInflater.from(viewGroup.getContext())
@@ -110,20 +74,17 @@ class ChatAdapter extends RecyclerView.Adapter {
             txtReceipt = itemView.findViewById(R.id.txtReceipt);
         }
 
-        public void bind(MessageEntry messageEntry) {
-            mItem = messageEntry;
-            messageEntry.addObserver(this);
-            onChanged(messageEntry);
-        }
-
         @Override
-        public void onChanged(MessageEntry message) {
-            txtMessage.setText(message.getBody());
-            txtReceipt.setText(message.getReceiptText());
+        public void bind(MessageEntry item) {
+            super.bind(item);
+            txtMessage.setText(item.getBody());
+            if (!item.isFriendMessage()) {
+                txtReceipt.setVisibility(View.VISIBLE);
+                txtReceipt.setText(item.getReceiptText());
+            } else {
+                txtReceipt.setVisibility(View.GONE);
+            }
         }
 
-        public void onRecycled() {
-            mItem.removeObserver(this);
-        }
     }
 }

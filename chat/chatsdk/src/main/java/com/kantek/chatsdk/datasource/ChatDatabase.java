@@ -7,15 +7,15 @@ import android.arch.persistence.room.OnConflictStrategy;
 import android.arch.persistence.room.Query;
 import android.arch.persistence.room.Room;
 import android.arch.persistence.room.RoomDatabase;
-import android.arch.persistence.room.Update;
 import android.content.Context;
 
-import java.util.Collection;
+import com.kantek.chatsdk.models.Contact;
+import com.kantek.chatsdk.models.MessageEntry;
+import com.kantek.chatsdk.models.ReceiptState;
+
 import java.util.List;
 
-import com.kantek.chatsdk.models.MessageEntry;
-
-@Database(entities = {MessageEntry.class}, version = 1, exportSchema = false)
+@Database(entities = {MessageEntry.class, Contact.class}, version = 1, exportSchema = false)
 public abstract class ChatDatabase extends RoomDatabase {
     public static ChatDatabase sInstance;
 
@@ -34,25 +34,60 @@ public abstract class ChatDatabase extends RoomDatabase {
 
     public abstract MessageDao messageDao();
 
+    public abstract ContactDao contactDao();
+
     @Dao
     public interface MessageDao {
 
         @Insert(onConflict = OnConflictStrategy.REPLACE)
         void addAll(List<MessageEntry> messageEntries);
 
-        @Query("select * from MessageEntry order by mTimeReceived asc")
-        List<MessageEntry> getAll();
-
         @Query("select * from MessageEntry where (mFromId = :id1 and mToId = :id2) or ( mFromId = :id2 and mToId = :id1) order by mTimeReceived asc")
-        List<MessageEntry> getByPairChat(String id1, String id2);
-
-        @Update(onConflict = OnConflictStrategy.REPLACE)
-        void update(MessageEntry messageEntry);
-
-        @Update(onConflict = OnConflictStrategy.REPLACE)
-        void update(Collection<MessageEntry> messageEntryMap);
+        List<MessageEntry> getByPair(String id1, String id2);
 
         @Insert(onConflict = OnConflictStrategy.REPLACE)
         void add(MessageEntry messageEntry);
+
+        @Query("update MessageEntry set mReceipt=" + ReceiptState.READ +
+                " where (mId=:messageId or (mFromId=:fromId and mToId=:toId))" +
+                " and mReceipt!=" + ReceiptState.READ)
+        void updateRead(String messageId, String fromId, String toId);
+
+        @Query("update MessageEntry set mReceipt=:state" +
+                " where (mId=:messageId or (mFromId=:fromId and mToId=:toId)) " +
+                " and mReceipt!=" + ReceiptState.READ)
+        void updateReceipt(String messageId, String fromId, String toId, int state);
+
+        @Query("select * from MessageEntry where mId=:id")
+        MessageEntry get(String id);
+    }
+
+    @Dao
+    public interface ContactDao {
+
+        @Query("update Contact set mNumOfUnread=mNumOfUnread+:number where mContactId=:withId and mMyId=:myId")
+        void addUnRead(String withId, String myId, int number);
+
+        @Query("update Contact set mNumOfUnread=mNumOfUnread+1" +
+                " where (mContactId=:id1 and mMyId=:id2) or (mContactId=:id2 and mMyId=:id1)")
+        void increaseUnRead(String id1, String id2);
+
+        @Query("update Contact set mNumOfUnread=0" +
+                " where (mContactId=:id1 and mMyId=:id2) or (mContactId=:id2 and mMyId=:id1)")
+        void markToRead(String id1, String id2);
+
+        @Insert(onConflict = OnConflictStrategy.IGNORE)
+        void addAll(List<Contact> contacts);
+
+        @Query("select mNumOfUnread from Contact where ((mContactId=:id1 and mMyId=:id2) or (mContactId=:id2 and mMyId=:id1))")
+        int getNumOfUnread(String id1, String id2);
+
+        @Query("select * from Contact")
+        List<Contact> getPrivate();
+
+        @Query("select * from Contact" +
+                " where (mContactId=:id1 and mMyId=:id2) or (mContactId=:id2 and mMyId=:id1)")
+        Contact get(String id1, String id2);
+
     }
 }

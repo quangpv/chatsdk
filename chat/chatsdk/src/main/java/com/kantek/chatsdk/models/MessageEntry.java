@@ -1,28 +1,31 @@
 package com.kantek.chatsdk.models;
 
 import android.arch.persistence.room.Entity;
+import android.arch.persistence.room.Ignore;
 import android.arch.persistence.room.PrimaryKey;
 import android.support.annotation.NonNull;
 
-import org.jivesoftware.smack.packet.Message;
-
 import com.kantek.chatsdk.utils.PackageAnalyze;
 
+import org.jivesoftware.smack.packet.Message;
+
 @Entity
-public class MessageEntry extends Observable {
-    @PrimaryKey
+public class MessageEntry implements Searchable {
+
     @NonNull
+    @PrimaryKey
     private String mId;
     private String mFromId;
     private String mToId;
     private String mBody;
     private long mTimeReceived;
     private int mReceipt = ReceiptState.NONE;
-    private boolean mFriendMessage = true;
+    private boolean mFriendMessage = false;
 
     public MessageEntry() {
     }
 
+    @Ignore
     public MessageEntry(Message message) {
         mId = message.getStanzaId();
         mFromId = PackageAnalyze.getFromId(message);
@@ -53,10 +56,6 @@ public class MessageEntry extends Observable {
 
     public String getBody() {
         return mBody;
-    }
-
-    public boolean isTypeSend() {
-        return mReceipt == ReceiptState.SENDING || mReceipt == ReceiptState.SENT;
     }
 
     public long getTimeReceived() {
@@ -102,15 +101,22 @@ public class MessageEntry extends Observable {
         }
     }
 
-    public int compareTime(MessageEntry t1) {
-        return mTimeReceived - t1.mTimeReceived > 0 ? 1 : -1;
-    }
-
     public boolean isFriendMessage() {
         return mFriendMessage;
     }
 
     public void setFriendMessage(boolean b) {
         mFriendMessage = b;
+    }
+
+    @Override
+    public String getSearchPair() {
+        return PairHashMap.encode(mId, mId);
+    }
+
+    @Override
+    public void onChanged(Object item) {
+        MessageEntry entry = (MessageEntry) item;
+        mReceipt = entry.getReceipt();
     }
 }

@@ -1,4 +1,4 @@
-package com.kantek.chatsdk.filter;
+package com.kantek.chatsdk.filter.entry;
 
 import org.jivesoftware.smackx.chatstates.ChatState;
 

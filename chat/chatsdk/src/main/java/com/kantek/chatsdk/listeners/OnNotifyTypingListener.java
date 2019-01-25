@@ -3,12 +3,14 @@ package com.kantek.chatsdk.listeners;
 import android.text.Editable;
 import android.text.TextWatcher;
 
+import org.jivesoftware.smackx.chatstates.ChatState;
+
 import java.util.Timer;
 import java.util.TimerTask;
 
 public abstract class OnNotifyTypingListener implements TextWatcher {
     private Timer mTimer;
-    private boolean mPause = true;
+    private ChatState mChatState = ChatState.active;
 
     @Override
     public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -17,12 +19,16 @@ public abstract class OnNotifyTypingListener implements TextWatcher {
 
     @Override
     public void onTextChanged(CharSequence s, int start, int before, int count) {
-        if (s.length() == 0) return;
-        if (mPause) {
+        if (s.length() == 0) {
+            mChatState = ChatState.active;
+            composing(mChatState.toString());
+            return;
+        }
+        if (mChatState != ChatState.composing) {
             synchronized (this) {
-                mPause = false;
+                mChatState = ChatState.composing;
             }
-            composing(true);
+            composing(mChatState.toString());
         }
         if (mTimer != null) mTimer.cancel();
         mTimer = new Timer();
@@ -30,16 +36,17 @@ public abstract class OnNotifyTypingListener implements TextWatcher {
             @Override
             public void run() {
                 synchronized (OnNotifyTypingListener.this) {
-                    if (!mPause) {
-                        mPause = true;
-                        composing(false);
+                    if (mChatState == ChatState.active) return;
+                    if (mChatState == ChatState.composing) {
+                        mChatState = ChatState.paused;
+                        composing(mChatState.toString());
                     }
                 }
             }
         }, 2000);
     }
 
-    protected abstract void composing(boolean isComposing);
+    protected abstract void composing(String chatState);
 
     @Override
     public void afterTextChanged(Editable s) {

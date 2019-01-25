@@ -26,28 +26,25 @@ public class ChatActivity extends AppCompatActivity {
         edtMessage = findViewById(R.id.edtMessage);
         btnSend = findViewById(R.id.btnSend);
         mContact = (Contact) getIntent().getExtras().get("CONTACT");
-        mChat = XMPPClient.getInstance().getChat(this, mContact);
+        XMPPClient xmppClient = XMPPClient.getInstance();
+        mChat = xmppClient.getChat(this, mContact);
+        mChat.asLiveData().observe(this, mAdapter::submitList);
         setup();
     }
 
     private void setup() {
         edtMessage.addTextChangedListener(new OnNotifyTypingListener() {
             @Override
-            protected void composing(boolean isComposing) {
-                mChat.notifyTyping(isComposing);
+            protected void composing(String chatState) {
+                mChat.notifyTyping(chatState);
             }
         });
         btnSend.setOnClickListener(v -> {
             String message = edtMessage.getText().toString();
-            if (!message.isEmpty()) {
-                mChat.send(message);
-                edtMessage.setText("");
-            }
+            if (message.isEmpty()) return;
+            mChat.send(message);
+            edtMessage.setText("");
         });
-
-        mChat.setOnReceivedListener(message -> mAdapter.add(message));
-        mChat.setOnSendingListener(message -> mAdapter.add(message));
         mChat.setOnTypingListener(message -> mAdapter.typing(message));
-        mChat.setOnLoadedListener(messages -> mAdapter.addAll(messages));
     }
 }

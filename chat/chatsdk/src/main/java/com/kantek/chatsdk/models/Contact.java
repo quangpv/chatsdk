@@ -1,47 +1,68 @@
 package com.kantek.chatsdk.models;
 
-import android.arch.lifecycle.Observer;
-import android.support.v4.util.Consumer;
+import android.arch.persistence.room.Entity;
+import android.arch.persistence.room.Ignore;
+import android.support.annotation.NonNull;
 
 import java.io.Serializable;
 
-import com.kantek.chatsdk.datasource.ChatDataSource;
-import com.kantek.chatsdk.filter.UnreadFilter;
+@Entity(primaryKeys = {"mMyId", "mContactId"})
+public class Contact implements Serializable, Searchable {
 
-abstract public class Contact extends Observable implements Serializable {
-    private transient ChatDataSource mDataSource;
-    private transient Consumer<Integer> mOnUnreadChanged;
+    @NonNull
+    private String mMyId;
 
-    public String contactId;
-    private String mId;
-    private String mNumOfUnread;
+    @NonNull
+    private String mContactId;
 
-    public Contact(String contactId, String myId, ChatDataSource chatDataSource) {
-        this.contactId = contactId;
-        mId = myId;
-        mDataSource = chatDataSource;
-        mNumOfUnread = mDataSource.getUnreadSizeOfPair(mId, contactId) + "";
-        mDataSource.addOnUnreadChangedListener(mOnUnreadChanged = integer -> {
-            mNumOfUnread = integer + "";
-            notifyChanged();
-        }, new UnreadFilter(mId, contactId));
+    private int mNumOfUnread;
+
+    public Contact() {
     }
 
-    @Override
-    public <T extends Observable> void removeObserver(Observer<T> observer) {
-        super.removeObserver(observer);
-        if (mDataSource != null)
-            mDataSource.removeUnreadChangedListener(mOnUnreadChanged);
+    @Ignore
+    public Contact(String contactId, String myId) {
+        mContactId = contactId;
+        mMyId = myId;
+        mNumOfUnread = 0;
     }
 
-    @Override
-    public void removeObservers() {
-        super.removeObservers();
-        if (mDataSource != null)
-            mDataSource.removeUnreadChangedListener(mOnUnreadChanged);
+    public void setMyId(String myId) {
+        mMyId = myId;
     }
 
-    public String getNumOfUnread() {
+    public void setContactId(String contactId) {
+        mContactId = contactId;
+    }
+
+    public void setNumOfUnread(int numOfUnread) {
+        mNumOfUnread = numOfUnread;
+    }
+
+    public String getContactId() {
+        return mContactId;
+    }
+
+    public String getMyId() {
+        return mMyId;
+    }
+
+    public int getNumOfUnread() {
         return mNumOfUnread;
+    }
+
+    public boolean isPrivate() {
+        return true;
+    }
+
+    @Override
+    public String getSearchPair() {
+        return PairHashMap.encode(mMyId, mContactId);
+    }
+
+    @Override
+    public void onChanged(Object item) {
+        Contact contact = (Contact) item;
+        mNumOfUnread = contact.getNumOfUnread();
     }
 }

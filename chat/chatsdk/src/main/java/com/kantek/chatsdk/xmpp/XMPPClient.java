@@ -10,7 +10,6 @@ import com.kantek.chatsdk.chatclient.GroupChat;
 import com.kantek.chatsdk.chatclient.PrivateChat;
 import com.kantek.chatsdk.datasource.ChatDataSource;
 import com.kantek.chatsdk.models.Contact;
-import com.kantek.chatsdk.models.FriendContact;
 import com.kantek.chatsdk.utils.ChatExecutors;
 import com.kantek.chatsdk.utils.JidFormatter;
 
@@ -83,7 +82,7 @@ public class XMPPClient {
     }
 
     private void registries() {
-        mConnection.registryOnNotifyReadListener(message -> ChatExecutors.inBackground(() -> mChatDataSource.updateRead(message)));
+        mConnection.registryOnNotifyReadListener(message -> ChatExecutors.inBackground(() -> mChatDataSource.updateReadMessageReceived(message)));
         mConnection.registryInComingListener(message -> ChatExecutors.inBackground(() -> mChatDataSource.addInComing(message)));
         mConnection.registryOutGoingListener(message -> ChatExecutors.inBackground(() -> mChatDataSource.addOutGoing(message)));
         mConnection.registryReceiptListener((message, state) -> ChatExecutors.inBackground(() -> mChatDataSource.updateReceipt(message, state)));
@@ -95,12 +94,12 @@ public class XMPPClient {
     }
 
     public ChatClient getChat(LifecycleOwner owner, Contact contact) {
-        String id = contact.contactId;
+        String id = contact.getContactId();
         ChatClient chat;
         if (mChat.containsKey(id)) {
             chat = mChat.get(id);
         } else {
-            if (contact instanceof FriendContact)
+            if (contact.isPrivate())
                 chat = new PrivateChat(mChatDataSource, id);
             else chat = new GroupChat(mChatDataSource, id);
             mChat.put(id, chat);
@@ -119,11 +118,17 @@ public class XMPPClient {
         return mUserName;
     }
 
-    public ContactClient getContact() {
-        return new ContactClient(mUserName, mConnection, mChatDataSource);
+    public ContactClient getContact(LifecycleOwner owner) {
+        ContactClient contactClient = new ContactClient(mUserName, mConnection, mChatDataSource);
+        contactClient.setLifecycle(owner.getLifecycle());
+        return contactClient;
     }
 
     public void setPassword(String password) {
         mPassword = password;
+    }
+
+    public ChatDataSource getDataSource() {
+        return mChatDataSource;
     }
 }
