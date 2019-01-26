@@ -21,10 +21,13 @@ class ChatAdapter extends PageAdapter<MessageEntry> {
 
     public void typing(boolean isTyping) {
         if (isTyping == mTyping) return;
-        int itemCount = super.getItemCount();
         mTyping = isTyping;
-        if (mTyping) notifyItemInserted(itemCount);
-        else notifyItemRemoved(itemCount);
+        int itemCount = super.getItemCount();
+        if (mTyping) {
+            notifyItemInserted(itemCount);
+        } else {
+            notifyItemRemoved(itemCount);
+        }
     }
 
     @Override

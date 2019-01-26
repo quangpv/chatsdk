@@ -74,4 +74,8 @@ public class PairHashMap<T> {
         String[] ids = decode(pair);
         remove(ids[0], ids[1]);
     }
+
+    public void clear() {
+        mMap.clear();
+    }
 }

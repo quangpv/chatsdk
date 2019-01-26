@@ -10,8 +10,9 @@ import android.util.Log;
 
 import com.kantek.chatsdk.datasource.ChatDataSource;
 import com.kantek.chatsdk.extension.ReadReceipt;
-import com.kantek.chatsdk.filter.entry.StateEntryFilter;
 import com.kantek.chatsdk.filter.entry.MessageFilter;
+import com.kantek.chatsdk.filter.entry.StateEntryFilter;
+import com.kantek.chatsdk.models.ChatParameters;
 import com.kantek.chatsdk.models.MessageEntry;
 import com.kantek.chatsdk.models.PageList;
 import com.kantek.chatsdk.models.StateEntry;
@@ -26,9 +27,9 @@ import org.jivesoftware.smackx.receipts.DeliveryReceipt;
 
 public abstract class ChatClient implements LifecycleObserver {
     final ChatDataSource dataSource;
+    final ChatParameters parameters;
     final XMPPTCPConnection connection;
-    private final String mWithId;
-    private final PageList<MessageEntry> mPageList = new PageList<>();
+    private final PageList<MessageEntry> mPageList;
     private Lifecycle mLifecycle;
 
     private Consumer<MessageEntry> mOnSendingListener;
@@ -37,14 +38,17 @@ public abstract class ChatClient implements LifecycleObserver {
     private Consumer<MessageEntry> mOnReceiptListener;
     private MutableLiveData<PageList<MessageEntry>> mLiveData = new MutableLiveData<>();
 
-    public ChatClient(ChatDataSource dataSource, String id) {
+    public ChatClient(ChatDataSource dataSource, ChatParameters chatParameters) {
         this.dataSource = dataSource;
         this.connection = dataSource.getConnection();
-        this.mWithId = id;
+        this.parameters = chatParameters;
+        mPageList = new PageList<>(parameters.getInitializePageSize(), parameters.getPageSize());
     }
 
     @OnLifecycleEvent(Lifecycle.Event.ON_CREATE)
     protected void onStart() {
+        mPageList.setOnLoadMoreListener((page, size) ->
+                dataSource.getMostRecent(getMyId(), getWithId(), page, size));
         dataSource.addOnInComingListener(mOnMessageReceivedListener = messageEntry -> {
             if (mLifecycle != null && mLifecycle.getCurrentState().isAtLeast(Lifecycle.State.STARTED))
                 notifyRead();
@@ -55,7 +59,11 @@ public abstract class ChatClient implements LifecycleObserver {
         dataSource.addOnStateListeners(mOnTypingListener, new StateEntryFilter(ChatState.composing, ChatState.paused, ChatState.active));
         dataSource.addOnReceiptListeners(mOnReceiptListener = mPageList::update, new MessageFilter(getMyId(), getWithId()));
         ChatExecutors.inBackground(() -> {
-            mPageList.addAll(dataSource.getByPair(getMyId(), mWithId));
+            mPageList.clear();
+            mPageList.addAll(dataSource.getMostRecent(getMyId(),
+                    parameters.getWithId(),
+                    0,
+                    mPageList.getInitSize()));
             mLiveData.postValue(mPageList);
         });
     }
@@ -80,11 +88,13 @@ public abstract class ChatClient implements LifecycleObserver {
     }
 
     public String getWithId() {
-        return mWithId;
+        return parameters.getWithId();
     }
 
     public void setOnTypingListener(Consumer<Boolean> onTypingListener) {
-        mOnTypingListener = registry(stateEntry -> onTypingListener.accept(stateEntry.isTyping()));
+        mOnTypingListener = registry(stateEntry -> {
+            onTypingListener.accept(stateEntry.isTyping());
+        });
     }
 
     protected <T> Consumer<T> registry(Consumer<T> onMessageListener) {

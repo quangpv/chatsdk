@@ -4,15 +4,17 @@ import android.content.Context;
 import android.support.v4.util.Consumer;
 import android.util.Log;
 
-import com.kantek.chatsdk.filter.entry.StateEntryFilter;
 import com.kantek.chatsdk.filter.entry.ChatFilter;
+import com.kantek.chatsdk.filter.entry.StateEntryFilter;
 import com.kantek.chatsdk.models.AtomicUnRead;
 import com.kantek.chatsdk.models.Contact;
 import com.kantek.chatsdk.models.MessageEntry;
 import com.kantek.chatsdk.models.PairHashMap;
 import com.kantek.chatsdk.models.ReceiptState;
 import com.kantek.chatsdk.models.StateEntry;
+import com.kantek.chatsdk.utils.JidFormatter;
 import com.kantek.chatsdk.utils.PackageAnalyze;
+import com.kantek.chatsdk.xmpp.MamManager;
 import com.kantek.chatsdk.xmpp.XMPPChatConnection;
 
 import org.jivesoftware.smack.packet.Message;
@@ -21,6 +23,7 @@ import org.jivesoftware.smackx.offline.OfflineMessageHeader;
 import org.jivesoftware.smackx.offline.OfflineMessageManager;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +31,7 @@ import java.util.Map;
 public class ChatDataSource {
     private final PairHashMap<StateEntry> mState;
     private OfflineMessageManager mOfflineMessageManager;
+
     private XMPPChatConnection mConnection;
     private Map<Consumer<MessageEntry>, ChatFilter<MessageEntry>> mOnComingListeners = new HashMap<>();
     private Map<Consumer<MessageEntry>, ChatFilter<MessageEntry>> mOnOutGoingListeners = new HashMap<>();
@@ -210,7 +214,25 @@ public class ChatDataSource {
         return mContactStorage.getPrivate();
     }
 
-    public List<MessageEntry> getByPair(String myId, String withId) {
-        return mMessageStorage.getByPair(myId, withId);
+    public List<MessageEntry> getMostRecent(String myId, String withId, int index, int pageSize) {
+        MamManager mamManager = MamManager.getInstanceFor(mConnection);
+        try {
+            if (mamManager.isSupported()) {
+                if (index == 0) {
+                    List<Message> messages = mamManager.queryMostRecentPage(JidFormatter.fullJid(myId), pageSize).getMessages();
+                    List<MessageEntry> messageEntries = new ArrayList<>();
+                    for (Message message : messages) {
+                        MessageEntry messageEntry = new MessageEntry(message);
+                        messageEntries.add(messageEntry);
+                    }
+                    mMessageStorage.addAllIgnore(messageEntries);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        List<MessageEntry> values = mMessageStorage.getMostRecent(myId, withId, index, pageSize);
+        Collections.reverse(values);
+        return values;
     }
 }

@@ -26,7 +26,7 @@ public class ContactClient implements LifecycleObserver {
     private final String mId;
     private final ChatDataSource mChatDataSource;
     private MutableLiveData<PageList<Contact>> mLiveData = new MutableLiveData<>();
-    private PageList<Contact> mPageList = new PageList<>();
+    private PageList<Contact> mPageList;
     private Lifecycle mLifecycle;
     private Consumer<Contact> mPrivateContactFilter;
 
@@ -34,6 +34,7 @@ public class ContactClient implements LifecycleObserver {
         mId = userName;
         mRoster = connection.getRoster();
         mChatDataSource = chatDataSource;
+        mPageList = new PageList<>(0, 0);
     }
 
     public void setLifecycle(Lifecycle lifecycle) {

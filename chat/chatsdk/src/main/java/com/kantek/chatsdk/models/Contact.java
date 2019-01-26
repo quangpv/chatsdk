@@ -7,7 +7,7 @@ import android.support.annotation.NonNull;
 import java.io.Serializable;
 
 @Entity(primaryKeys = {"mMyId", "mContactId"})
-public class Contact implements Serializable, Searchable {
+public class Contact implements Serializable, ItemPaging {
 
     @NonNull
     private String mMyId;

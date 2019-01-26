@@ -42,8 +42,14 @@ public abstract class ChatDatabase extends RoomDatabase {
         @Insert(onConflict = OnConflictStrategy.REPLACE)
         void addAll(List<MessageEntry> messageEntries);
 
-        @Query("select * from MessageEntry where (mFromId = :id1 and mToId = :id2) or ( mFromId = :id2 and mToId = :id1) order by mTimeReceived asc")
-        List<MessageEntry> getByPair(String id1, String id2);
+        @Insert(onConflict = OnConflictStrategy.IGNORE)
+        void addAllIgnore(List<MessageEntry> messageEntries);
+
+        @Query("select * from MessageEntry where (mFromId = :id1 and mToId = :id2) or ( mFromId = :id2 and mToId = :id1)" +
+                " order by mTimeReceived desc" +
+                " limit :index,:pageSize"
+        )
+        List<MessageEntry> getMostRecent(String id1, String id2, int index, int pageSize);
 
         @Insert(onConflict = OnConflictStrategy.REPLACE)
         void add(MessageEntry messageEntry);

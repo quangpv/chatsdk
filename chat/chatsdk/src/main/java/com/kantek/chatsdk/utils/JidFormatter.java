@@ -2,6 +2,7 @@ package com.kantek.chatsdk.utils;
 
 import org.jxmpp.jid.DomainBareJid;
 import org.jxmpp.jid.EntityBareJid;
+import org.jxmpp.jid.EntityFullJid;
 import org.jxmpp.jid.impl.JidCreate;
 import org.jxmpp.jid.parts.Resourcepart;
 import org.jxmpp.stringprep.XmppStringprepException;
@@ -20,6 +21,14 @@ public final class JidFormatter {
     public static EntityBareJid jid(String withUserId) {
         try {
             return JidCreate.entityBareFrom(String.format("%s@%s", withUserId, XMPPClient.HOST));
+        } catch (XmppStringprepException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static EntityFullJid fullJid(String withUserId) {
+        try {
+            return JidCreate.entityFullFrom(String.format("%s@%s/%s", withUserId, XMPPClient.HOST,XMPPClient.RESOURCE));
         } catch (XmppStringprepException e) {
             throw new RuntimeException(e);
         }

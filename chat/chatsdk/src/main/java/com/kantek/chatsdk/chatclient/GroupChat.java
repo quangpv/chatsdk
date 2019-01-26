@@ -1,5 +1,9 @@
 package com.kantek.chatsdk.chatclient;
 
+import com.kantek.chatsdk.datasource.ChatDataSource;
+import com.kantek.chatsdk.models.ChatParameters;
+import com.kantek.chatsdk.utils.JidFormatter;
+
 import org.jivesoftware.smack.SmackException;
 import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.packet.Message;
@@ -10,14 +14,11 @@ import org.jivesoftware.smackx.muc.MultiUserChatManager;
 
 import java.util.List;
 
-import com.kantek.chatsdk.datasource.ChatDataSource;
-import com.kantek.chatsdk.utils.JidFormatter;
-
 public class GroupChat extends ChatClient {
     private final MultiUserChat mChat;
 
-    public GroupChat(ChatDataSource dataSource, String id) {
-        super(dataSource, id);
+    public GroupChat(ChatDataSource dataSource, ChatParameters chatParameters) {
+        super(dataSource, chatParameters);
         mChat = MultiUserChatManager.getInstanceFor(dataSource.getConnection())
                 .getMultiUserChat(JidFormatter.groupJid(getWithId()));
     }

@@ -10,7 +10,7 @@ import com.kantek.chatsdk.utils.PackageAnalyze;
 import org.jivesoftware.smack.packet.Message;
 
 @Entity
-public class MessageEntry implements Searchable {
+public class MessageEntry implements ItemPaging {
 
     @NonNull
     @PrimaryKey

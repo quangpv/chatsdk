@@ -1,18 +1,19 @@
 package com.kantek.chatsdk.chatclient;
 
+import com.kantek.chatsdk.datasource.ChatDataSource;
+import com.kantek.chatsdk.models.ChatParameters;
+import com.kantek.chatsdk.utils.JidFormatter;
+
 import org.jivesoftware.smack.chat2.Chat;
 import org.jivesoftware.smack.chat2.ChatManager;
 import org.jivesoftware.smack.packet.Message;
 
-import com.kantek.chatsdk.datasource.ChatDataSource;
-import com.kantek.chatsdk.utils.JidFormatter;
-
 public class PrivateChat extends ChatClient {
     private final Chat mChat;
 
-    public PrivateChat(ChatDataSource dataSource, String withUserId) {
-        super(dataSource, withUserId);
-        mChat = ChatManager.getInstanceFor(connection).chatWith(JidFormatter.jid(withUserId));
+    public PrivateChat(ChatDataSource dataSource, ChatParameters chatParameters) {
+        super(dataSource, chatParameters);
+        mChat = ChatManager.getInstanceFor(connection).chatWith(JidFormatter.jid(chatParameters.getWithId()));
     }
 
     @Override

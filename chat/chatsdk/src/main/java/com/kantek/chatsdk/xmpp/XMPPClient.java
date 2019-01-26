@@ -9,6 +9,7 @@ import com.kantek.chatsdk.chatclient.ChatClient;
 import com.kantek.chatsdk.chatclient.GroupChat;
 import com.kantek.chatsdk.chatclient.PrivateChat;
 import com.kantek.chatsdk.datasource.ChatDataSource;
+import com.kantek.chatsdk.models.ChatParameters;
 import com.kantek.chatsdk.models.Contact;
 import com.kantek.chatsdk.utils.ChatExecutors;
 import com.kantek.chatsdk.utils.JidFormatter;
@@ -22,11 +23,11 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class XMPPClient {
-    private static final int PORT = 5222;
+    public static final int PORT = 5222;
     //    public static final String HOST = "xmpp.jp";
     public static final String HOST = "ec2-54-70-166-109.us-west-2.compute.amazonaws.com";
     public static final String GROUP = "conference." + HOST;
-    private static final CharSequence RESOURCE = "amazon";
+    public static final CharSequence RESOURCE = "amazon";
     private static XMPPClient sInstance;
     private String mUserName = "quangpv1";
     private String mPassword = "abc12345";
@@ -99,9 +100,13 @@ public class XMPPClient {
         if (mChat.containsKey(id)) {
             chat = mChat.get(id);
         } else {
+            ChatParameters chatParameters = new ChatParameters()
+                    .setWithId(id)
+                    .setInitializePageSize(10)
+                    .setPageSize(10);
             if (contact.isPrivate())
-                chat = new PrivateChat(mChatDataSource, id);
-            else chat = new GroupChat(mChatDataSource, id);
+                chat = new PrivateChat(mChatDataSource, chatParameters);
+            else chat = new GroupChat(mChatDataSource, chatParameters);
             mChat.put(id, chat);
         }
         assert chat != null;

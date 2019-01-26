@@ -18,7 +18,7 @@ public class PackageAnalyze {
     }
 
     public static String getId(Jid jid) {
-        return jid.toString().split("@")[0].toUpperCase();
+        return jid.getLocalpartOrNull().toString().toUpperCase();
     }
 
     public static String getResourceId(Jid message) {

@@ -29,13 +29,19 @@ android {
 }
 
 dependencies {
+
     implementation fileTree(dir: 'libs', include: ['*.jar'])
-    implementation 'org.igniterealtime.smack:smack-android:4.3.1'
-    implementation 'org.igniterealtime.smack:smack-tcp:4.3.1'
-    implementation 'org.igniterealtime.smack:smack-android-extensions:4.3.1'
+
+    def smackVersion = "4.3.1"
+    implementation "org.igniterealtime.smack:smack-android:$smackVersion"
+    implementation "org.igniterealtime.smack:smack-tcp:$smackVersion"
+    implementation "org.igniterealtime.smack:smack-android-extensions:$smackVersion"
+    implementation "org.igniterealtime.smack:smack-experimental:$smackVersion"
+
     implementation "android.arch.persistence.room:runtime:1.1.1"
     annotationProcessor "android.arch.persistence.room:compiler:1.1.1"
     implementation 'com.android.support:appcompat-v7:28.0.0'
     implementation 'com.android.support:recyclerview-v7:28.0.0'
+    testImplementation 'junit:junit:4.12'
 
 }

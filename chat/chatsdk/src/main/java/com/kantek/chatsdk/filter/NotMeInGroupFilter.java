@@ -1,10 +1,10 @@
 package com.kantek.chatsdk.filter;
 
+import com.kantek.chatsdk.utils.PackageAnalyze;
+
 import org.jivesoftware.smack.filter.StanzaFilter;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Stanza;
-
-import com.kantek.chatsdk.utils.PackageAnalyze;
 
 public class NotMeInGroupFilter implements StanzaFilter {
     @Override

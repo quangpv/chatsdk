@@ -3,6 +3,15 @@ package com.kantek.chatsdk.xmpp;
 import android.support.v4.util.Consumer;
 import android.util.Log;
 
+import com.kantek.chatsdk.extension.ReadReceipt;
+import com.kantek.chatsdk.filter.ReceiptFilter;
+import com.kantek.chatsdk.filter.StateFilter;
+import com.kantek.chatsdk.filter.entry.MessageFilter;
+import com.kantek.chatsdk.listeners.OnChatMessageListener;
+import com.kantek.chatsdk.listeners.OnMessageListener;
+import com.kantek.chatsdk.listeners.OnReceiptListener;
+import com.kantek.chatsdk.models.ReceiptState;
+
 import org.jivesoftware.smack.ConnectionListener;
 import org.jivesoftware.smack.ReconnectionManager;
 import org.jivesoftware.smack.SmackException;
@@ -18,23 +27,16 @@ import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
 import org.jivesoftware.smackx.chatstates.ChatState;
 import org.jivesoftware.smackx.chatstates.packet.ChatStateExtension;
 import org.jivesoftware.smackx.disco.ServiceDiscoveryManager;
+import org.jivesoftware.smackx.mam.element.MamElements;
 import org.jivesoftware.smackx.ping.PingManager;
 import org.jivesoftware.smackx.receipts.DeliveryReceipt;
 import org.jivesoftware.smackx.receipts.DeliveryReceiptManager;
 
 import java.io.IOException;
 
-import com.kantek.chatsdk.extension.ReadReceipt;
-import com.kantek.chatsdk.filter.ReceiptFilter;
-import com.kantek.chatsdk.filter.StateFilter;
-import com.kantek.chatsdk.filter.entry.MessageFilter;
-import com.kantek.chatsdk.listeners.OnChatMessageListener;
-import com.kantek.chatsdk.listeners.OnMessageListener;
-import com.kantek.chatsdk.listeners.OnReceiptListener;
-import com.kantek.chatsdk.models.ReceiptState;
-
 public class XMPPChatConnection extends XMPPTCPConnection {
 
+    private static final String MAM_NAMESPACE = "urn:xmpp:archive:auto";
     private final Roster mRoster;
     private OnMessageListener mOnPrivateInComingListener;
     private OnMessageListener mOnPrivateOutGoingListener;
